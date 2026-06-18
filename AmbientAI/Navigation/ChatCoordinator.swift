@@ -45,9 +45,22 @@ final class ChatCoordinator: Coordinator {
         viewModel.onSelectSession = { [weak self] session in
             self?.showExistingChat(session: session)
         }
+        viewModel.onDeletedSession = { [weak self] sessionID in
+            self?.removeDeletedChatFromStack(sessionID: sessionID)
+        }
         viewModel.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         let controller = ChatHistoryViewController(viewModel: viewModel)
         navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func removeDeletedChatFromStack(sessionID: UUID) {
+        let updatedStack = navigationController.viewControllers.filter { controller in
+            guard let chatController = controller as? ChatViewController else { return true }
+            return chatController.viewModel.sessionID != sessionID
+        }
+        if updatedStack.count != navigationController.viewControllers.count {
+            navigationController.setViewControllers(updatedStack, animated: false)
+        }
     }
 
     private func showExistingChat(session: ChatSession) {

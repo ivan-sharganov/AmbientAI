@@ -20,6 +20,8 @@ final class ChatViewModel {
         self.initialPrompt = nil
     }
 
+    var sessionID: UUID? { session?.id }
+
     func viewDidLoad() {
         Task { await bootstrap() }
     }

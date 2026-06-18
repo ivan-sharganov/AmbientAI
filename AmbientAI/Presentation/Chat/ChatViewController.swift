@@ -1,7 +1,7 @@
 import UIKit
 
 final class ChatViewController: UIViewController {
-    private let viewModel: ChatViewModel
+    let viewModel: ChatViewModel
     private var messages: [ChatMessage] = []
     private var isLoadingResponse = false
 

@@ -3,6 +3,7 @@ import Foundation
 final class ChatHistoryViewModel {
     var onStateChange: ((ChatHistoryState) -> Void)?
     var onDeleteResult: ((HistoryDeleteResult) -> Void)?
+    var onDeletedSession: ((UUID) -> Void)?
     var onSelectSession: ((ChatSession) -> Void)?
     var onClose: (() -> Void)?
 
@@ -49,6 +50,7 @@ final class ChatHistoryViewModel {
                     isEmpty: sessions.isEmpty
                 )
                 onDeleteResult?(result)
+                onDeletedSession?(session.id)
             } catch {
                 await reload()
             }
