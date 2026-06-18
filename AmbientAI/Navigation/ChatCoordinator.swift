@@ -16,6 +16,9 @@ final class ChatCoordinator: Coordinator {
         viewModel.onStartChat = { [weak self] prompt in
             self?.showChat(initialPrompt: prompt)
         }
+        viewModel.onOpenWriting = { [weak self] in
+            self?.showWriting()
+        }
         viewModel.onOpenHistory = { [weak self] in
             self?.showHistory()
         }
@@ -28,6 +31,12 @@ final class ChatCoordinator: Coordinator {
         viewModel.onOpenHistory = { [weak self] in self?.showHistory() }
         viewModel.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         let controller = ChatViewController(viewModel: viewModel)
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showWriting() {
+        let controller = AIWritingViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         navigationController.pushViewController(controller, animated: true)
     }
 

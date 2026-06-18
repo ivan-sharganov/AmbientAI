@@ -83,14 +83,58 @@ final class HomeViewController: UIViewController {
         content.addArrangedSubview(promptField)
         promptField.heightAnchor.constraint(equalToConstant: 46).isActive = true
 
-        let tap = UITapGestureRecognizer(target: self, action: #selector(promptTapped))
-        promptField.addGestureRecognizer(tap)
+        let promptTap = UITapGestureRecognizer(target: self, action: #selector(promptTapped))
+        promptField.addGestureRecognizer(promptTap)
 
-        let cards = UIStackView(axis: .horizontal, spacing: 12, alignment: .fill, distribution: .fillEqually)
-        cards.addArrangedSubview(makeFeatureCard(title: "Turn Photo\ninto Video", subtitle: "Animate • Templates", icon: "camera.filters"))
-        cards.addArrangedSubview(makeFeatureCard(title: "Pix & Improve\nWriting", subtitle: "Rewrite • Fix grammar", icon: "wand.and.stars"))
-        content.addArrangedSubview(cards)
-        cards.heightAnchor.constraint(equalToConstant: 190).isActive = true
+        let featureGrid = makeFeatureGrid()
+        content.addArrangedSubview(featureGrid)
+        featureGrid.heightAnchor.constraint(equalToConstant: 246).isActive = true
+    }
+
+    private func makeFeatureGrid() -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let videoCard = makeLargeFeatureCard(
+            title: "Turn Photo\ninto Video",
+            subtitle: "Animate • Templates",
+            icon: "camera.filters",
+            selector: #selector(photoTapped)
+        )
+        let writingCard = makeSmallFeatureCard(
+            title: "Fix & Improve\nWriting",
+            subtitle: "Rewrite • Fix grammar",
+            icon: "wand.and.stars",
+            selector: #selector(writingTapped)
+        )
+        let summaryCard = makeSmallFeatureCard(
+            title: "Understand\nFaster",
+            subtitle: "Summarize • Key points",
+            icon: "text.badge.checkmark",
+            selector: #selector(summaryTapped)
+        )
+
+        container.addSubview(videoCard)
+        container.addSubview(writingCard)
+        container.addSubview(summaryCard)
+
+        NSLayoutConstraint.activate([
+            videoCard.topAnchor.constraint(equalTo: container.topAnchor),
+            videoCard.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            videoCard.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            videoCard.widthAnchor.constraint(equalTo: container.widthAnchor, multiplier: 0.49),
+
+            writingCard.topAnchor.constraint(equalTo: container.topAnchor),
+            writingCard.leadingAnchor.constraint(equalTo: videoCard.trailingAnchor, constant: 10),
+            writingCard.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            writingCard.heightAnchor.constraint(equalTo: container.heightAnchor, multiplier: 0.48),
+
+            summaryCard.leadingAnchor.constraint(equalTo: writingCard.leadingAnchor),
+            summaryCard.trailingAnchor.constraint(equalTo: writingCard.trailingAnchor),
+            summaryCard.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            summaryCard.heightAnchor.constraint(equalTo: writingCard.heightAnchor)
+        ])
+        return container
     }
 
     private func makePromptIcon() -> UIView {
@@ -102,37 +146,19 @@ final class HomeViewController: UIViewController {
         return container
     }
 
-    private func makeFeatureCard(title: String, subtitle: String, icon: String) -> UIView {
+    private func makeLargeFeatureCard(title: String, subtitle: String, icon: String, selector: Selector) -> UIView {
         let card = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink], startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 1, y: 1))
         card.layer.cornerRadius = 18
         card.layer.masksToBounds = true
+        card.translatesAutoresizingMaskIntoConstraints = false
 
         let stack = UIStackView(axis: .vertical, spacing: 8, alignment: .leading)
         card.addSubview(stack)
         stack.pinToSuperviewEdges(insets: UIEdgeInsets(top: 18, left: 16, bottom: 14, right: 16))
 
-        let iconView = UIImageView(image: UIImage(systemName: icon))
-        iconView.tintColor = .white
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            iconView.widthAnchor.constraint(equalToConstant: 24),
-            iconView.heightAnchor.constraint(equalToConstant: 24)
-        ])
-        stack.addArrangedSubview(iconView)
-
-        let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.textColor = .white
-        titleLabel.font = DesignSystem.Font.bodySemibold
-        titleLabel.numberOfLines = 2
-        stack.addArrangedSubview(titleLabel)
-
-        let subtitleLabel = UILabel()
-        subtitleLabel.text = subtitle
-        subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.74)
-        subtitleLabel.font = DesignSystem.Font.caption
-        stack.addArrangedSubview(subtitleLabel)
-
+        stack.addArrangedSubview(makeCardIcon(systemName: icon))
+        stack.addArrangedSubview(makeTitleLabel(title, font: DesignSystem.Font.bodySemibold))
+        stack.addArrangedSubview(makeSubtitleLabel(subtitle))
         stack.addArrangedSubview(UIView())
 
         let pill = UILabel()
@@ -150,13 +176,106 @@ final class HomeViewController: UIViewController {
             pill.heightAnchor.constraint(equalToConstant: 28)
         ])
 
-        let tap = UITapGestureRecognizer(target: self, action: #selector(promptTapped))
-        card.addGestureRecognizer(tap)
+        card.addGestureRecognizer(UITapGestureRecognizer(target: self, action: selector))
         return card
+    }
+
+    private func makeSmallFeatureCard(title: String, subtitle: String, icon: String, selector: Selector) -> UIView {
+        let card = UIView()
+        card.backgroundColor = DesignSystem.Color.backgroundElevated
+        card.layer.cornerRadius = 18
+        card.translatesAutoresizingMaskIntoConstraints = false
+
+        let iconView = makeCardIcon(systemName: icon)
+        let titleLabel = makeTitleLabel(title, font: UIFont.systemFont(ofSize: 16, weight: .semibold))
+        let subtitleLabel = makeSubtitleLabel(subtitle)
+
+        card.addSubview(iconView)
+        card.addSubview(titleLabel)
+        card.addSubview(subtitleLabel)
+
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            iconView.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            iconView.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+
+            subtitleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            subtitleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            subtitleLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
+            subtitleLabel.heightAnchor.constraint(equalToConstant: 16),
+
+            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            titleLabel.bottomAnchor.constraint(equalTo: subtitleLabel.topAnchor, constant: -6),
+            titleLabel.heightAnchor.constraint(equalToConstant: 40)
+        ])
+
+        card.addGestureRecognizer(UITapGestureRecognizer(target: self, action: selector))
+        return card
+    }
+
+    private func makeCardIcon(systemName: String) -> UIView {
+        let container = UIView()
+        container.backgroundColor = UIColor.white.withAlphaComponent(0.10)
+        container.layer.cornerRadius = 16
+        container.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            container.widthAnchor.constraint(equalToConstant: 32),
+            container.heightAnchor.constraint(equalToConstant: 32)
+        ])
+
+        let imageView = UIImageView(image: UIImage(systemName: systemName))
+        imageView.tintColor = .white
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            imageView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 18),
+            imageView.heightAnchor.constraint(equalToConstant: 18)
+        ])
+        return container
+    }
+
+    private func makeTitleLabel(_ text: String, font: UIFont) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.textColor = .white
+        label.font = font
+        label.numberOfLines = 2
+        label.lineBreakMode = .byWordWrapping
+        return label
+    }
+
+    private func makeSubtitleLabel(_ text: String) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.textColor = UIColor.white.withAlphaComponent(0.62)
+        label.font = DesignSystem.Font.caption
+        label.numberOfLines = 1
+        label.lineBreakMode = .byTruncatingTail
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.75
+        return label
     }
 
     @objc private func promptTapped() {
         viewModel.startChat(prompt: promptField.text)
+    }
+
+    @objc private func photoTapped() {
+        viewModel.startChat(prompt: "Turn photo into video")
+    }
+
+    @objc private func writingTapped() {
+        viewModel.openWriting()
+    }
+
+    @objc private func summaryTapped() {
+        viewModel.startChat(prompt: "Summarize key points")
     }
 
     @objc private func openHistory() {

@@ -2,6 +2,7 @@ import Foundation
 
 final class HomeViewModel {
     var onStartChat: ((String?) -> Void)?
+    var onOpenWriting: (() -> Void)?
     var onOpenHistory: (() -> Void)?
     var onStateChange: ((HomeState) -> Void)?
 
@@ -19,6 +20,10 @@ final class HomeViewModel {
 
     func startChat(prompt: String?) {
         onStartChat?(prompt?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty)
+    }
+
+    func openWriting() {
+        onOpenWriting?()
     }
 
     func openHistory() {
