@@ -56,6 +56,10 @@ final class MockChatRepository: ChatRepository {
         return sessions[refreshedIndex]
     }
 
+    func deleteSession(id: UUID) async throws {
+        try await storage.deleteSession(id: id)
+    }
+
     func deleteAllSessions() async throws {
         try await storage.deleteAllSessions()
     }

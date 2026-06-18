@@ -28,11 +28,28 @@ final class ChatHistoryViewModel {
     }
 
     func select(indexPath: IndexPath) {
-        guard indexPath.count >= 2 else { return }
+        guard let session = session(at: indexPath) else { return }
+        onSelectSession?(session)
+    }
+
+    func delete(indexPath: IndexPath) {
+        guard let session = session(at: indexPath) else { return }
+        Task {
+            do {
+                try await repository.deleteSession(id: session.id)
+                await reload()
+            } catch {
+                await reload()
+            }
+        }
+    }
+
+    private func session(at indexPath: IndexPath) -> ChatSession? {
+        guard indexPath.count >= 2 else { return nil }
         let section = indexPath[0]
         let row = indexPath[1]
-        guard sections.indices.contains(section), sections[section].sessions.indices.contains(row) else { return }
-        onSelectSession?(sections[section].sessions[row])
+        guard sections.indices.contains(section), sections[section].sessions.indices.contains(row) else { return nil }
+        return sections[section].sessions[row]
     }
 
     func close() {

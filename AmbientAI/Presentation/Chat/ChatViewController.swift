@@ -259,10 +259,10 @@ final class ChatViewController: UIViewController {
         }
     }
 
-    private func scrollToBottom() {
-        let rows = tableView.numberOfRows(inSection: 0)
-        guard rows > 0 else { return }
-        tableView.scrollToRow(at: IndexPath(row: rows - 1, section: 0), at: .bottom, animated: true)
+    private func scrollToBottom(animated: Bool = true) {
+        tableView.layoutIfNeeded()
+        let bottomOffsetY = max(-tableView.adjustedContentInset.top, tableView.contentSize.height - tableView.bounds.height + tableView.adjustedContentInset.bottom)
+        tableView.setContentOffset(CGPoint(x: 0, y: bottomOffsetY), animated: animated)
     }
 
     private func showError(_ message: String) {
@@ -290,12 +290,22 @@ final class ChatViewController: UIViewController {
         let converted = view.convert(frame, from: nil)
         let overlap = max(0, view.bounds.maxY - converted.minY - view.safeAreaInsets.bottom)
         inputBottomConstraint.constant = -overlap - 10
-        UIView.animate(withDuration: 0.25) { self.view.layoutIfNeeded() }
+        let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
+        let optionsRaw = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 0
+        let options = UIView.AnimationOptions(rawValue: optionsRaw << 16)
+
+        UIView.animate(withDuration: duration, delay: 0, options: options) {
+            self.view.layoutIfNeeded()
+        } completion: { _ in
+            guard !self.messages.isEmpty || self.isLoadingResponse else { return }
+            self.scrollToBottom(animated: true)
+        }
     }
 
     @objc private func keyboardWillHide(_ notification: Notification) {
         inputBottomConstraint.constant = -10
-        UIView.animate(withDuration: 0.25) { self.view.layoutIfNeeded() }
+        let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
+        UIView.animate(withDuration: duration) { self.view.layoutIfNeeded() }
     }
 
     @objc private func sendTapped() {

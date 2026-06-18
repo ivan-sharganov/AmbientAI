@@ -34,6 +34,12 @@ final class FileChatStorage: ChatStorage {
         try data.write(to: fileURL, options: [.atomic])
     }
 
+    func deleteSession(id: UUID) async throws {
+        var sessions = try await loadSessions()
+        sessions.removeAll { $0.id == id }
+        try await saveSessions(sessions)
+    }
+
     func deleteAllSessions() async throws {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
         try FileManager.default.removeItem(at: fileURL)
