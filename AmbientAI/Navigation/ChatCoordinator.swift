@@ -49,6 +49,15 @@ final class ChatCoordinator: Coordinator {
         controller.onSelectTemplate = { [weak self] template in
             self?.showVideoTemplateDetail(template: template)
         }
+        controller.onOpenHistory = { [weak self] in
+            self?.showVideoHistory()
+        }
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showVideoHistory() {
+        let controller = VideoHistoryViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         navigationController.pushViewController(controller, animated: true)
     }
 

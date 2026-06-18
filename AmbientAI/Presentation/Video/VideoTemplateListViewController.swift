@@ -4,6 +4,7 @@ import UIKit
 final class VideoTemplateListViewController: UIViewController {
     var onClose: (() -> Void)?
     var onSelectTemplate: ((VideoTemplate) -> Void)?
+    var onOpenHistory: (() -> Void)?
 
     private let categories = VideoTemplateCatalog.categories
     private var selectedCategoryIndex = 0
@@ -97,6 +98,7 @@ final class VideoTemplateListViewController: UIViewController {
         title.translatesAutoresizingMaskIntoConstraints = false
 
         let refreshButton = IconButton(systemName: "arrow.triangle.2.circlepath", pointSize: 17)
+        refreshButton.addTarget(self, action: #selector(openHistoryTapped), for: .touchUpInside)
 
         container.addSubview(backButton)
         container.addSubview(avatar)
@@ -155,6 +157,10 @@ final class VideoTemplateListViewController: UIViewController {
 
     @objc private func closeTapped() {
         onClose?()
+    }
+
+    @objc private func openHistoryTapped() {
+        onOpenHistory?()
     }
 }
 
