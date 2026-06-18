@@ -26,6 +26,9 @@ final class ChatHistoryViewController: UIViewController {
         viewModel.onStateChange = { [weak self] state in
             self?.render(state)
         }
+        viewModel.onDeleteResult = { [weak self] result in
+            self?.animateDeletion(result)
+        }
     }
 
     private func setupUI() {
@@ -133,6 +136,29 @@ final class ChatHistoryViewController: UIViewController {
         case .empty:
             tableView.isHidden = true
             emptyStateView.isHidden = false
+        }
+    }
+
+    private func animateDeletion(_ result: HistoryDeleteResult) {
+        tableView.performBatchUpdates {
+            if let section = result.removedSectionIndex {
+                tableView.deleteSections(IndexSet(integer: section), with: .automatic)
+            } else {
+                tableView.deleteRows(at: [result.indexPath], with: .automatic)
+            }
+        } completion: { [weak self] _ in
+            guard let self else { return }
+            if result.isEmpty {
+                self.tableView.isHidden = true
+                self.emptyStateView.alpha = 0
+                self.emptyStateView.isHidden = false
+                UIView.animate(withDuration: 0.2) {
+                    self.emptyStateView.alpha = 1
+                }
+            } else {
+                self.emptyStateView.isHidden = true
+                self.tableView.isHidden = false
+            }
         }
     }
 
