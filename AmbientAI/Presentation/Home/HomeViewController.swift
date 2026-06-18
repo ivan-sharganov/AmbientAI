@@ -267,7 +267,7 @@ final class HomeViewController: UIViewController {
     }
 
     @objc private func photoTapped() {
-        viewModel.startChat(prompt: "Turn photo into video")
+        viewModel.openVideoTemplates()
     }
 
     @objc private func writingTapped() {

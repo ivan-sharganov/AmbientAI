@@ -19,6 +19,9 @@ final class ChatCoordinator: Coordinator {
         viewModel.onOpenWriting = { [weak self] in
             self?.showWriting()
         }
+        viewModel.onOpenVideoTemplates = { [weak self] in
+            self?.showVideoTemplates()
+        }
         viewModel.onOpenHistory = { [weak self] in
             self?.showHistory()
         }
@@ -36,6 +39,21 @@ final class ChatCoordinator: Coordinator {
 
     private func showWriting() {
         let controller = AIWritingViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showVideoTemplates() {
+        let controller = VideoTemplateListViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onSelectTemplate = { [weak self] template in
+            self?.showVideoTemplateDetail(template: template)
+        }
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showVideoTemplateDetail(template: VideoTemplate) {
+        let controller = VideoTemplateDetailViewController(template: template)
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         navigationController.pushViewController(controller, animated: true)
     }

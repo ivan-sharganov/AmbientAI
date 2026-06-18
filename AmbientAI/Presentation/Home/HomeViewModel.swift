@@ -3,6 +3,7 @@ import Foundation
 final class HomeViewModel {
     var onStartChat: ((String?) -> Void)?
     var onOpenWriting: (() -> Void)?
+    var onOpenVideoTemplates: (() -> Void)?
     var onOpenHistory: (() -> Void)?
     var onStateChange: ((HomeState) -> Void)?
 
@@ -24,6 +25,10 @@ final class HomeViewModel {
 
     func openWriting() {
         onOpenWriting?()
+    }
+
+    func openVideoTemplates() {
+        onOpenVideoTemplates?()
     }
 
     func openHistory() {
