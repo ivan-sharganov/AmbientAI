@@ -64,6 +64,13 @@ final class ChatCoordinator: Coordinator {
     private func showVideoTemplateDetail(template: VideoTemplate) {
         let controller = VideoTemplateDetailViewController(template: template)
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onCreate = { [weak self] in self?.showVideoGenerationLoading() }
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showVideoGenerationLoading() {
+        let controller = VideoGenerationLoadingViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         navigationController.pushViewController(controller, animated: true)
     }
 

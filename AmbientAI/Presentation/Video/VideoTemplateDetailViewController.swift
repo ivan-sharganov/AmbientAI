@@ -3,6 +3,7 @@ import UIKit
 
 final class VideoTemplateDetailViewController: UIViewController {
     var onClose: (() -> Void)?
+    var onCreate: (() -> Void)?
 
     private enum DropdownKind {
         case format
@@ -284,6 +285,7 @@ final class VideoTemplateDetailViewController: UIViewController {
         createButton.layer.cornerRadius = 27
         createButton.clipsToBounds = true
         createButton.translatesAutoresizingMaskIntoConstraints = false
+        createButton.addTarget(self, action: #selector(createTapped), for: .touchUpInside)
 
         let gradient = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink], startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
         gradient.isUserInteractionEnabled = false
@@ -516,6 +518,11 @@ final class VideoTemplateDetailViewController: UIViewController {
         selectedQuality = qualities[sender.tag]
         qualityValueLabel.text = selectedQuality
         hideDropdown()
+    }
+
+    @objc private func createTapped() {
+        guard createButton.isEnabled else { return }
+        onCreate?()
     }
 
     @objc private func closeTapped() {
