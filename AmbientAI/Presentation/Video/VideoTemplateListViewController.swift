@@ -3,12 +3,15 @@ import UIKit
 
 final class VideoTemplateListViewController: UIViewController {
     var onClose: (() -> Void)?
-    var onSelectTemplate: ((VideoTemplate) -> Void)?
+    var onSelectTemplate: ((VideoTemplate, [VideoTemplate]) -> Void)?
     var onOpenHistory: (() -> Void)?
 
-    private let categories = VideoTemplateCatalog.categories
+    private let service: PixverseServiceProtocol
+    private var categories: [VideoTemplateCategory] = []
     private var selectedCategoryIndex = 0
-    private lazy var selectedTemplates = categories[selectedCategoryIndex].templates
+    private var selectedTemplates: [VideoTemplate] = []
+    private let loadingIndicator = UIActivityIndicatorView(style: .large)
+    private let errorLabel = UILabel()
 
     private lazy var categoryCollectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
@@ -40,9 +43,19 @@ final class VideoTemplateListViewController: UIViewController {
         return collection
     }()
 
+    init(service: PixverseServiceProtocol) {
+        self.service = service
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        loadTemplates()
     }
 
     private func setupUI() {
@@ -56,112 +69,109 @@ final class VideoTemplateListViewController: UIViewController {
         view.addSubview(categoryCollectionView)
         view.addSubview(templatesCollectionView)
 
+        loadingIndicator.color = DesignSystem.Color.lavender
+        loadingIndicator.hidesWhenStopped = true
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(loadingIndicator)
+
+        errorLabel.textColor = DesignSystem.Color.secondaryText
+        errorLabel.font = DesignSystem.Font.body
+        errorLabel.textAlignment = .center
+        errorLabel.numberOfLines = 0
+        errorLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(errorLabel)
+
         NSLayoutConstraint.activate([
             header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
             header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
             header.heightAnchor.constraint(equalToConstant: 44),
-
             categoryCollectionView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 16),
             categoryCollectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             categoryCollectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             categoryCollectionView.heightAnchor.constraint(equalToConstant: 34),
-
             templatesCollectionView.topAnchor.constraint(equalTo: categoryCollectionView.bottomAnchor, constant: 4),
             templatesCollectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             templatesCollectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            templatesCollectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            templatesCollectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            errorLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            errorLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+            errorLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32)
         ])
     }
 
     private func makeHeader() -> UIView {
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
-
         let backButton = IconButton(systemName: "chevron.left", pointSize: 18)
         backButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-
-        let avatar = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink], startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 1, y: 1))
+        let avatar = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink])
         avatar.layer.cornerRadius = 15
-        avatar.layer.masksToBounds = true
+        avatar.clipsToBounds = true
         avatar.translatesAutoresizingMaskIntoConstraints = false
         let avatarIcon = UIImageView(image: UIImage(systemName: "camera.filters"))
         avatarIcon.tintColor = .white
-        avatarIcon.contentMode = .scaleAspectFit
         avatar.addSubview(avatarIcon)
         avatarIcon.pinToSuperviewEdges(insets: UIEdgeInsets(top: 7, left: 7, bottom: 7, right: 7))
-
         let title = UILabel()
         title.text = "AI Video"
         title.textColor = .white
         title.font = DesignSystem.Font.navTitle
         title.translatesAutoresizingMaskIntoConstraints = false
-
-        let refreshButton = IconButton(systemName: "arrow.triangle.2.circlepath", pointSize: 17)
-        refreshButton.addTarget(self, action: #selector(openHistoryTapped), for: .touchUpInside)
-
-        container.addSubview(backButton)
-        container.addSubview(avatar)
-        container.addSubview(title)
-        container.addSubview(refreshButton)
-
+        let historyButton = IconButton(systemName: "arrow.triangle.2.circlepath", pointSize: 17)
+        historyButton.addTarget(self, action: #selector(openHistoryTapped), for: .touchUpInside)
+        [backButton, avatar, title, historyButton].forEach(container.addSubview)
         NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            backButton.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-
-            avatar.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 10),
-            avatar.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            avatar.widthAnchor.constraint(equalToConstant: 30),
-            avatar.heightAnchor.constraint(equalToConstant: 30),
-
-            title.leadingAnchor.constraint(equalTo: avatar.trailingAnchor, constant: 10),
-            title.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-
-            refreshButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            refreshButton.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            backButton.leadingAnchor.constraint(equalTo: container.leadingAnchor), backButton.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            avatar.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 10), avatar.centerYAnchor.constraint(equalTo: container.centerYAnchor), avatar.widthAnchor.constraint(equalToConstant: 30), avatar.heightAnchor.constraint(equalToConstant: 30),
+            title.leadingAnchor.constraint(equalTo: avatar.trailingAnchor, constant: 10), title.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            historyButton.trailingAnchor.constraint(equalTo: container.trailingAnchor), historyButton.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
         return container
     }
 
-    private func openTemplateWithPhotoPermission(_ template: VideoTemplate) {
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        switch status {
-        case .authorized, .limited:
-            onSelectTemplate?(template)
-        case .notDetermined:
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] newStatus in
-                DispatchQueue.main.async {
-                    if newStatus == .authorized || newStatus == .limited {
-                        self?.onSelectTemplate?(template)
-                    } else {
-                        self?.showPhotoAccessAlert()
-                    }
-                }
+    private func loadTemplates() {
+        loadingIndicator.startAnimating()
+        errorLabel.text = nil
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                categories = try await service.loadTemplateCategories()
+                selectedCategoryIndex = 0
+                selectedTemplates = categories.first?.templates ?? []
+                loadingIndicator.stopAnimating()
+                categoryCollectionView.reloadData()
+                templatesCollectionView.reloadData()
+            } catch {
+                loadingIndicator.stopAnimating()
+                errorLabel.text = error.localizedDescription
             }
-        case .denied, .restricted:
-            showPhotoAccessAlert()
-        @unknown default:
-            showPhotoAccessAlert()
+        }
+    }
+
+    private func openTemplateWithPhotoPermission(_ template: VideoTemplate) {
+        let open = { [weak self] in self?.onSelectTemplate?(template, self?.selectedTemplates ?? [template]) }
+        switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
+        case .authorized, .limited: open()
+        case .notDetermined:
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                DispatchQueue.main.async { status == .authorized || status == .limited ? open() : self.showPhotoAccessAlert() }
+            }
+        default: showPhotoAccessAlert()
         }
     }
 
     private func showPhotoAccessAlert() {
         let alert = UIAlertController(title: "Allow access to photos?", message: "To upload an image, the app needs access to your photo gallery.", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Allow", style: .default) { _ in
-            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-            UIApplication.shared.open(url)
-        })
+        alert.addAction(UIAlertAction(title: "Allow", style: .default) { _ in UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!) })
         present(alert, animated: true)
     }
 
-    @objc private func closeTapped() {
-        onClose?()
-    }
-
-    @objc private func openHistoryTapped() {
-        onOpenHistory?()
-    }
+    @objc private func closeTapped() { onClose?() }
+    @objc private func openHistoryTapped() { onOpenHistory?() }
 }
 
 extension VideoTemplateListViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
@@ -175,7 +185,6 @@ extension VideoTemplateListViewController: UICollectionViewDataSource, UICollect
             cell.configure(title: categories[indexPath.item].title, isSelected: indexPath.item == selectedCategoryIndex)
             return cell
         }
-
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: VideoTemplateCell.reuseIdentifier, for: indexPath) as! VideoTemplateCell
         cell.configure(template: selectedTemplates[indexPath.item])
         return cell
@@ -184,12 +193,12 @@ extension VideoTemplateListViewController: UICollectionViewDataSource, UICollect
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if collectionView === categoryCollectionView {
             selectedCategoryIndex = indexPath.item
-            selectedTemplates = categories[indexCategorySafe: selectedCategoryIndex]?.templates ?? []
+            selectedTemplates = categories[indexPath.item].templates
             categoryCollectionView.reloadData()
-            templatesCollectionView.reloadSections(IndexSet(integer: 0))
-            return
+            templatesCollectionView.reloadData()
+        } else {
+            openTemplateWithPhotoPermission(selectedTemplates[indexPath.item])
         }
-        openTemplateWithPhotoPermission(selectedTemplates[indexPath.item])
     }
 
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
@@ -197,17 +206,9 @@ extension VideoTemplateListViewController: UICollectionViewDataSource, UICollect
             let title = categories[indexPath.item].title as NSString
             return CGSize(width: max(70, title.size(withAttributes: [.font: DesignSystem.Font.captionSemibold]).width + 28), height: 30)
         }
-        let width = floor((collectionView.bounds.width - 48) / 2)
-        return CGSize(width: width, height: 210)
+        return CGSize(width: floor((collectionView.bounds.width - 48) / 2), height: 210)
     }
 }
-
-private extension Array {
-    subscript(indexCategorySafe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
-
 private final class VideoCategoryCell: UICollectionViewCell {
     static let reuseIdentifier = "VideoCategoryCell"
     private let titleLabel = UILabel()

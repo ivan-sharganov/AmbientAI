@@ -5,17 +5,21 @@ final class ChatCoordinator: Coordinator {
     private let repository: ChatRepository
     private let aiWritingRepository: AIWritingRepository
     private let apphudService: ApphudServiceProtocol
+    private let pixverseService: PixverseServiceProtocol
+    private var videoGenerationTask: Task<Void, Never>?
 
     init(
         navigationController: UINavigationController,
         repository: ChatRepository,
         aiWritingRepository: AIWritingRepository,
-        apphudService: ApphudServiceProtocol
+        apphudService: ApphudServiceProtocol,
+        pixverseService: PixverseServiceProtocol
     ) {
         self.navigationController = navigationController
         self.repository = repository
         self.aiWritingRepository = aiWritingRepository
         self.apphudService = apphudService
+        self.pixverseService = pixverseService
     }
 
     func start() {
@@ -74,10 +78,10 @@ final class ChatCoordinator: Coordinator {
     }
 
     private func showVideoTemplates() {
-        let controller = VideoTemplateListViewController()
+        let controller = VideoTemplateListViewController(service: pixverseService)
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
-        controller.onSelectTemplate = { [weak self] template in
-            self?.showVideoTemplateDetail(template: template)
+        controller.onSelectTemplate = { [weak self] template, variants in
+            self?.showVideoTemplateDetail(template: template, variants: variants)
         }
         controller.onOpenHistory = { [weak self] in
             self?.showVideoHistory()
@@ -91,55 +95,85 @@ final class ChatCoordinator: Coordinator {
         navigationController.pushViewController(controller, animated: true)
     }
 
-    private func showVideoTemplateDetail(template: VideoTemplate) {
-        let controller = VideoTemplateDetailViewController(template: template)
+    private func showVideoTemplateDetail(template: VideoTemplate, variants: [VideoTemplate]) {
+        let controller = VideoTemplateDetailViewController(template: template, variants: variants)
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
-        controller.onCreate = { [weak self] in self?.showVideoGenerationLoading() }
+        controller.onCreate = { [weak self] request in self?.showVideoGenerationLoading(request: request) }
         navigationController.pushViewController(controller, animated: true)
     }
 
-    private func showVideoGenerationLoading() {
+    private func showVideoGenerationLoading(
+        request: VideoGenerationRequest,
+        replacing replacedController: UIViewController? = nil
+    ) {
+        videoGenerationTask?.cancel()
         let controller = VideoGenerationLoadingViewController()
-        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
-        controller.onFinished = { [weak self, weak controller] in
-            guard let controller else { return }
-            self?.showVideoResult(replacing: controller)
+        controller.onClose = { [weak self] in
+            self?.videoGenerationTask?.cancel()
+            self?.navigationController.popViewController(animated: true)
         }
-        navigationController.pushViewController(controller, animated: true)
+
+        if let replacedController {
+            replace(replacedController, with: controller)
+        } else {
+            navigationController.pushViewController(controller, animated: true)
+        }
+
+        videoGenerationTask = Task { [weak self, weak controller] in
+            guard let self else { return }
+            do {
+                let videoID = try await pixverseService.generateVideo(request: request)
+                let videoURL = try await pixverseService.waitForVideo(videoID: videoID)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard let controller else { return }
+                    self.showVideoResult(videoURL: videoURL, request: request, replacing: controller)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                await MainActor.run {
+                    guard let controller else { return }
+                    self.showVideoGenerationError(error, from: controller)
+                }
+            }
+        }
     }
 
-    private func showVideoResult(replacing loadingController: VideoGenerationLoadingViewController) {
-        let controller = VideoResultViewController()
+    private func showVideoResult(
+        videoURL: URL,
+        request: VideoGenerationRequest,
+        replacing loadingController: VideoGenerationLoadingViewController
+    ) {
+        let controller = VideoResultViewController(videoURL: videoURL)
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
         controller.onReplace = { [weak self, weak controller] in
             guard let controller else { return }
-            self?.regenerateVideo(replacing: controller)
+            self?.showVideoGenerationLoading(request: request, replacing: controller)
         }
+        replace(loadingController, with: controller)
+    }
 
+    private func replace(_ oldController: UIViewController, with newController: UIViewController) {
         var stack = navigationController.viewControllers
-        if let index = stack.firstIndex(where: { $0 === loadingController }) {
-            stack[index] = controller
+        if let index = stack.firstIndex(where: { $0 === oldController }) {
+            stack[index] = newController
             navigationController.setViewControllers(stack, animated: true)
         } else {
-            navigationController.pushViewController(controller, animated: true)
+            navigationController.pushViewController(newController, animated: true)
         }
     }
 
-    private func regenerateVideo(replacing resultController: VideoResultViewController) {
-        let controller = VideoGenerationLoadingViewController()
-        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
-        controller.onFinished = { [weak self, weak controller] in
-            guard let controller else { return }
-            self?.showVideoResult(replacing: controller)
-        }
-
-        var stack = navigationController.viewControllers
-        if let index = stack.firstIndex(where: { $0 === resultController }) {
-            stack[index] = controller
-            navigationController.setViewControllers(stack, animated: true)
-        } else {
-            navigationController.pushViewController(controller, animated: true)
-        }
+    private func showVideoGenerationError(_ error: Error, from loadingController: UIViewController) {
+        guard navigationController.viewControllers.contains(where: { $0 === loadingController }) else { return }
+        navigationController.popViewController(animated: true)
+        let alert = UIAlertController(
+            title: "Generation failed",
+            message: error.localizedDescription,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        navigationController.topViewController?.present(alert, animated: true)
     }
 
     private func showHistory() {

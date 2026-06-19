@@ -36,11 +36,17 @@ final class AppCoordinator: Coordinator {
             bearerToken: Configuration.dolaBearerToken,
             userIDProvider: { apphudService.userID }
         )
+        let pixverseService = PixverseService(
+            appID: Configuration.dolaAppID,
+            bearerToken: Configuration.dolaBearerToken,
+            userIDProvider: { apphudService.userID }
+        )
         let chatCoordinator = ChatCoordinator(
             navigationController: navigationController,
             repository: repository,
             aiWritingRepository: aiWritingRepository,
-            apphudService: apphudService
+            apphudService: apphudService,
+            pixverseService: pixverseService
         )
         self.chatCoordinator = chatCoordinator
         chatCoordinator.start()

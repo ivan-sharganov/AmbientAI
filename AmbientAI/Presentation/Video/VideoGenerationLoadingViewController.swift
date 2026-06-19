@@ -2,10 +2,8 @@ import UIKit
 
 final class VideoGenerationLoadingViewController: UIViewController {
     var onClose: (() -> Void)?
-    var onFinished: (() -> Void)?
 
     private let orbView = GeneratingOrbView()
-    private var finishWorkItem: DispatchWorkItem?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -15,11 +13,6 @@ final class VideoGenerationLoadingViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         orbView.startAnimating()
-        scheduleMockCompletionIfNeeded()
-    }
-
-    deinit {
-        finishWorkItem?.cancel()
     }
 
     private func setupUI() {
@@ -78,17 +71,7 @@ final class VideoGenerationLoadingViewController: UIViewController {
     }
 
     @objc private func closeTapped() {
-        finishWorkItem?.cancel()
         onClose?()
-    }
-
-    private func scheduleMockCompletionIfNeeded() {
-        guard finishWorkItem == nil else { return }
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.onFinished?()
-        }
-        finishWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2, execute: workItem)
     }
 }
 

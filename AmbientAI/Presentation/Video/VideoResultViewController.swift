@@ -1,17 +1,47 @@
 import UIKit
+import AVKit
 
 final class VideoResultViewController: UIViewController {
     var onClose: (() -> Void)?
     var onReplace: (() -> Void)?
 
-    private let resultImage = VideoResultPlaceholderFactory.makeImage(size: CGSize(width: 900, height: 1320))
+    private let videoURL: URL
+    private let videoView = LoopingVideoView()
     private let dimView = UIControl()
     private let toastView = UIView()
+
+    private var playbackURL: URL {
+        if videoURL.host == "example.com",
+           let fallbackURL = Bundle.main.url(forResource: "fallback_video", withExtension: "mov") {
+            return fallbackURL
+        }
+        return videoURL
+    }
+
+    init(videoURL: URL) {
+        self.videoURL = videoURL
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupToast()
+        videoView.configure(url: playbackURL)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        videoView.play()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        videoView.pause()
     }
 
     private func setupUI() {
@@ -43,21 +73,9 @@ final class VideoResultViewController: UIViewController {
         previewContainer.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(previewContainer)
 
-        let imageView = UIImageView(image: resultImage)
-        imageView.contentMode = .scaleAspectFill
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        previewContainer.addSubview(imageView)
-        imageView.pinToSuperviewEdges()
-
-        let playButton = UIButton(type: .system)
-        let playConfig = UIImage.SymbolConfiguration(pointSize: 58, weight: .bold)
-        playButton.setImage(UIImage(systemName: "play.fill", withConfiguration: playConfig), for: .normal)
-        playButton.tintColor = .white.withAlphaComponent(0.92)
-        playButton.backgroundColor = UIColor.black.withAlphaComponent(0.08)
-        playButton.layer.cornerRadius = 44
-        playButton.addTarget(self, action: #selector(playTapped), for: .touchUpInside)
-        playButton.translatesAutoresizingMaskIntoConstraints = false
-        previewContainer.addSubview(playButton)
+        videoView.translatesAutoresizingMaskIntoConstraints = false
+        previewContainer.addSubview(videoView)
+        videoView.pinToSuperviewEdges()
 
         let replaceButton = UIButton(type: .system)
         replaceButton.backgroundColor = UIColor.white.withAlphaComponent(0.52)
@@ -97,11 +115,6 @@ final class VideoResultViewController: UIViewController {
             previewContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 36),
             previewContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -36),
             previewContainer.bottomAnchor.constraint(equalTo: buttonStack.topAnchor, constant: -18),
-
-            playButton.centerXAnchor.constraint(equalTo: previewContainer.centerXAnchor),
-            playButton.centerYAnchor.constraint(equalTo: previewContainer.centerYAnchor),
-            playButton.widthAnchor.constraint(equalToConstant: 88),
-            playButton.heightAnchor.constraint(equalToConstant: 88),
 
             replaceButton.topAnchor.constraint(equalTo: previewContainer.topAnchor, constant: 18),
             replaceButton.trailingAnchor.constraint(equalTo: previewContainer.trailingAnchor, constant: -16),
@@ -221,19 +234,8 @@ final class VideoResultViewController: UIViewController {
         onReplace?()
     }
 
-    @objc private func playTapped() {
-        // The current result is a static placeholder. Keep the tap responsive without pretending playback exists.
-        UIView.animate(withDuration: 0.12, animations: {
-            self.view.transform = CGAffineTransform(scaleX: 0.995, y: 0.995)
-        }, completion: { _ in
-            UIView.animate(withDuration: 0.12) {
-                self.view.transform = .identity
-            }
-        })
-    }
-
     @objc private func shareTapped() {
-        let controller = UIActivityViewController(activityItems: [resultImage, "Generated video placeholder"], applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: [playbackURL], applicationActivities: nil)
         if let popover = controller.popoverPresentationController {
             popover.sourceView = view
             popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.maxY - 80, width: 1, height: 1)
@@ -243,6 +245,41 @@ final class VideoResultViewController: UIViewController {
 
     @objc private func downloadTapped() {
         showSavedToast()
+    }
+}
+
+private final class LoopingVideoView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+
+    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+    private var player: AVQueuePlayer?
+    private var looper: AVPlayerLooper?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        playerLayer.videoGravity = .resizeAspectFill
+        backgroundColor = .black
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func configure(url: URL) {
+        let item = AVPlayerItem(url: url)
+        let player = AVQueuePlayer()
+        player.isMuted = true
+        self.player = player
+        looper = AVPlayerLooper(player: player, templateItem: item)
+        playerLayer.player = player
+    }
+
+    func play() {
+        player?.play()
+    }
+
+    func pause() {
+        player?.pause()
     }
 }
 
