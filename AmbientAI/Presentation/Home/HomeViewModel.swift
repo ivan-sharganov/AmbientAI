@@ -5,6 +5,7 @@ final class HomeViewModel {
     var onOpenWriting: (() -> Void)?
     var onOpenVideoTemplates: (() -> Void)?
     var onOpenHistory: (() -> Void)?
+    var onOpenPaywall: (() -> Void)?
     var onStateChange: ((HomeState) -> Void)?
 
     private let repository: ChatRepository
@@ -33,6 +34,10 @@ final class HomeViewModel {
 
     func openHistory() {
         onOpenHistory?()
+    }
+
+    func openPaywall() {
+        onOpenPaywall?()
     }
 }
 

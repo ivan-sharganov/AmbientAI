@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A11000012FE5000000000001 /* ApphudSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A11000022FE5000000000002 /* ApphudSDK */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		1BF8B4222FE40AAB00FB285C /* AmbientAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AmbientAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A11000012FE5000000000001 /* ApphudSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = AmbientAI;
 			packageProductDependencies = (
+				A11000022FE5000000000002 /* ApphudSDK */,
 			);
 			productName = AmbientAI;
 			productReference = 1BF8B4222FE40AAB00FB285C /* AmbientAI.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = 1BF8B4192FE40AAB00FB285C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A11000032FE5000000000003 /* XCRemoteSwiftPackageReference "ApphudSDK" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BF8B4232FE40AAB00FB285C /* Products */;
 			projectDirPath = "";
@@ -145,6 +154,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q4Z66P3B82;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AmbientAI/Info.plist;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow AmbientAI to access photos for video templates.";
@@ -175,6 +185,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q4Z66P3B82;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AmbientAI/Info.plist;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow AmbientAI to access photos for video templates.";
@@ -339,6 +350,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A11000032FE5000000000003 /* XCRemoteSwiftPackageReference "ApphudSDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apphud/ApphudSDK.git";
+			requirement = {
+				kind = exactVersion;
+				version = 4.0.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A11000022FE5000000000002 /* ApphudSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A11000032FE5000000000003 /* XCRemoteSwiftPackageReference "ApphudSDK" */;
+			productName = ApphudSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1BF8B41A2FE40AAB00FB285C /* Project object */;
 }

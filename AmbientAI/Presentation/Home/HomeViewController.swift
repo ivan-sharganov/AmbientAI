@@ -47,6 +47,22 @@ final class HomeViewController: UIViewController {
             settingsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -22)
         ])
 
+        let paywallButton = UIButton(type: .system)
+        paywallButton.setTitle("PRO", for: .normal)
+        paywallButton.setTitleColor(.white, for: .normal)
+        paywallButton.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .bold)
+        paywallButton.backgroundColor = DesignSystem.Color.pink
+        paywallButton.layer.cornerRadius = 18
+        paywallButton.addTarget(self, action: #selector(paywallTapped), for: .touchUpInside)
+        paywallButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(paywallButton)
+        NSLayoutConstraint.activate([
+            paywallButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
+            paywallButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 22),
+            paywallButton.widthAnchor.constraint(equalToConstant: 58),
+            paywallButton.heightAnchor.constraint(equalToConstant: 36)
+        ])
+
         let heroIcon = UIImageView(image: UIImage(systemName: "sparkles"))
         heroIcon.tintColor = DesignSystem.Color.pink
         heroIcon.contentMode = .scaleAspectFit
@@ -280,6 +296,10 @@ final class HomeViewController: UIViewController {
 
     @objc private func openHistory() {
         viewModel.openHistory()
+    }
+
+    @objc private func paywallTapped() {
+        viewModel.openPaywall()
     }
 }
 

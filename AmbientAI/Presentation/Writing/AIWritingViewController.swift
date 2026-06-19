@@ -2,6 +2,7 @@ import UIKit
 
 final class AIWritingViewController: UIViewController {
     var onClose: (() -> Void)?
+    var onGenerate: ((String) -> Void)?
 
     private let textView = UITextView()
     private let counterLabel = UILabel()
@@ -131,6 +132,7 @@ final class AIWritingViewController: UIViewController {
         generateButton.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .bold)
         generateButton.layer.cornerRadius = 28
         generateButton.layer.masksToBounds = true
+        generateButton.addTarget(self, action: #selector(generateTapped), for: .touchUpInside)
         generateButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(generateButton)
 
@@ -352,6 +354,13 @@ final class AIWritingViewController: UIViewController {
 
     @objc private func closeTapped() {
         onClose?()
+    }
+
+    @objc private func generateTapped() {
+        let text = textView.text ?? ""
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        view.endEditing(true)
+        onGenerate?(text)
     }
 }
 

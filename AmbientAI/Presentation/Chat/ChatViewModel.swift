@@ -27,8 +27,8 @@ final class ChatViewModel {
     }
 
     func send(_ rawText: String) {
-        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let text = rawText
 
         Task {
             do {

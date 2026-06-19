@@ -25,8 +25,19 @@ final class ChatCoordinator: Coordinator {
         viewModel.onOpenHistory = { [weak self] in
             self?.showHistory()
         }
+        viewModel.onOpenPaywall = { [weak self] in
+            self?.showPaywall()
+        }
         let controller = HomeViewController(viewModel: viewModel)
         navigationController.setViewControllers([controller], animated: false)
+    }
+
+    private func showPaywall() {
+        let controller = PaywallViewController()
+        controller.onClose = { [weak self] in
+            self?.navigationController.popViewController(animated: true)
+        }
+        navigationController.pushViewController(controller, animated: true)
     }
 
     private func showChat(initialPrompt: String?) {
@@ -40,6 +51,9 @@ final class ChatCoordinator: Coordinator {
     private func showWriting() {
         let controller = AIWritingViewController()
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onGenerate = { [weak self] text in
+            self?.showChat(initialPrompt: text)
+        }
         navigationController.pushViewController(controller, animated: true)
     }
 
@@ -71,7 +85,45 @@ final class ChatCoordinator: Coordinator {
     private func showVideoGenerationLoading() {
         let controller = VideoGenerationLoadingViewController()
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onFinished = { [weak self, weak controller] in
+            guard let controller else { return }
+            self?.showVideoResult(replacing: controller)
+        }
         navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showVideoResult(replacing loadingController: VideoGenerationLoadingViewController) {
+        let controller = VideoResultViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onReplace = { [weak self, weak controller] in
+            guard let controller else { return }
+            self?.regenerateVideo(replacing: controller)
+        }
+
+        var stack = navigationController.viewControllers
+        if let index = stack.firstIndex(where: { $0 === loadingController }) {
+            stack[index] = controller
+            navigationController.setViewControllers(stack, animated: true)
+        } else {
+            navigationController.pushViewController(controller, animated: true)
+        }
+    }
+
+    private func regenerateVideo(replacing resultController: VideoResultViewController) {
+        let controller = VideoGenerationLoadingViewController()
+        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onFinished = { [weak self, weak controller] in
+            guard let controller else { return }
+            self?.showVideoResult(replacing: controller)
+        }
+
+        var stack = navigationController.viewControllers
+        if let index = stack.firstIndex(where: { $0 === resultController }) {
+            stack[index] = controller
+            navigationController.setViewControllers(stack, animated: true)
+        } else {
+            navigationController.pushViewController(controller, animated: true)
+        }
     }
 
     private func showHistory() {
