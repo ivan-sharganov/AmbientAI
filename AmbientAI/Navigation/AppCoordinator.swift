@@ -31,7 +31,17 @@ final class AppCoordinator: Coordinator {
             bearerToken: Configuration.dolaBearerToken,
             userIDProvider: { apphudService.userID }
         )
-        let chatCoordinator = ChatCoordinator(navigationController: navigationController, repository: repository, apphudService: apphudService)
+        let aiWritingRepository = DolaAIWritingRepository(
+            appID: Configuration.dolaAppID,
+            bearerToken: Configuration.dolaBearerToken,
+            userIDProvider: { apphudService.userID }
+        )
+        let chatCoordinator = ChatCoordinator(
+            navigationController: navigationController,
+            repository: repository,
+            aiWritingRepository: aiWritingRepository,
+            apphudService: apphudService
+        )
         self.chatCoordinator = chatCoordinator
         chatCoordinator.start()
 

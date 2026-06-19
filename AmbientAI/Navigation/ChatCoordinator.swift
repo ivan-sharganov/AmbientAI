@@ -3,11 +3,18 @@ import UIKit
 final class ChatCoordinator: Coordinator {
     private let navigationController: UINavigationController
     private let repository: ChatRepository
+    private let aiWritingRepository: AIWritingRepository
     private let apphudService: ApphudServiceProtocol
 
-    init(navigationController: UINavigationController, repository: ChatRepository, apphudService: ApphudServiceProtocol) {
+    init(
+        navigationController: UINavigationController,
+        repository: ChatRepository,
+        aiWritingRepository: AIWritingRepository,
+        apphudService: ApphudServiceProtocol
+    ) {
         self.navigationController = navigationController
         self.repository = repository
+        self.aiWritingRepository = aiWritingRepository
         self.apphudService = apphudService
     }
 
@@ -51,8 +58,17 @@ final class ChatCoordinator: Coordinator {
     private func showWriting() {
         let controller = AIWritingViewController()
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
-        controller.onGenerate = { [weak self] text in
-            self?.showChat(initialPrompt: text)
+        controller.onGenerate = { [weak self] request in
+            self?.showWritingResult(request: request)
+        }
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showWritingResult(request: AIWritingRequestModel) {
+        let viewModel = AIWritingResultViewModel(request: request, repository: aiWritingRepository)
+        let controller = AIWritingResultViewController(viewModel: viewModel)
+        controller.onClose = { [weak self] in
+            self?.navigationController.popViewController(animated: true)
         }
         navigationController.pushViewController(controller, animated: true)
     }

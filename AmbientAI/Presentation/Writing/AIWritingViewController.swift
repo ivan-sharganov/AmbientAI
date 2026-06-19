@@ -2,7 +2,7 @@ import UIKit
 
 final class AIWritingViewController: UIViewController {
     var onClose: (() -> Void)?
-    var onGenerate: ((String) -> Void)?
+    var onGenerate: ((AIWritingRequestModel) -> Void)?
 
     private let textView = UITextView()
     private let counterLabel = UILabel()
@@ -360,7 +360,28 @@ final class AIWritingViewController: UIViewController {
         let text = textView.text ?? ""
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         view.endEditing(true)
-        onGenerate?(text)
+        let selectedAction = selectedActionButton?.currentTitle
+        let request = AIWritingRequestModel(
+            text: text,
+            improve: selectedAction == "Improve",
+            rewrite: selectedAction == "Rewrite",
+            fixGrammar: selectedAction == "Fix grammar",
+            shorten: selectedAction == "Shorten",
+            translateTo: languageCode(for: languageValueLabel.text),
+            style: styleValueLabel.text?.lowercased()
+        )
+        onGenerate?(request)
+    }
+
+    private func languageCode(for language: String?) -> String? {
+        switch language {
+        case "English": return "en"
+        case "Spanish": return "es"
+        case "French": return "fr"
+        case "German": return "de"
+        case "Russian": return "ru"
+        default: return nil
+        }
     }
 }
 
