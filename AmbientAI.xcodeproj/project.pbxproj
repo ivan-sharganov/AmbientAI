@@ -157,6 +157,7 @@
 				DEVELOPMENT_TEAM = Q4Z66P3B82;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AmbientAI/Info.plist;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Allow AmbientAI to save generated videos to your photo library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow AmbientAI to access photos for video templates.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -188,6 +189,7 @@
 				DEVELOPMENT_TEAM = Q4Z66P3B82;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AmbientAI/Info.plist;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Allow AmbientAI to save generated videos to your photo library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow AmbientAI to access photos for video templates.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

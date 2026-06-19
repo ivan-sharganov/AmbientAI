@@ -1,5 +1,6 @@
 import UIKit
 import AVKit
+import Photos
 
 final class VideoResultViewController: UIViewController {
     var onClose: (() -> Void)?
@@ -9,6 +10,7 @@ final class VideoResultViewController: UIViewController {
     private let videoView = LoopingVideoView()
     private let dimView = UIControl()
     private let toastView = UIView()
+    private let downloadButton = UIButton(type: .system)
 
     private var playbackURL: URL {
         if videoURL.host == "example.com",
@@ -94,7 +96,7 @@ final class VideoResultViewController: UIViewController {
         let shareButton = makePlainActionButton(title: "Share")
         shareButton.addTarget(self, action: #selector(shareTapped), for: .touchUpInside)
 
-        let downloadButton = makeGradientActionButton(title: "Download")
+        configureGradientActionButton(downloadButton, title: "Download")
         downloadButton.addTarget(self, action: #selector(downloadTapped), for: .touchUpInside)
 
         let buttonStack = UIStackView(axis: .horizontal, spacing: 16, distribution: .fillEqually)
@@ -187,6 +189,11 @@ final class VideoResultViewController: UIViewController {
 
     private func makeGradientActionButton(title: String) -> UIButton {
         let button = UIButton(type: .system)
+        configureGradientActionButton(button, title: title)
+        return button
+    }
+
+    private func configureGradientActionButton(_ button: UIButton, title: String) {
         button.layer.cornerRadius = 21
         button.clipsToBounds = true
         button.setTitle(title, for: .normal)
@@ -197,7 +204,6 @@ final class VideoResultViewController: UIViewController {
         gradient.isUserInteractionEnabled = false
         button.insertSubview(gradient, at: 0)
         gradient.pinToSuperviewEdges()
-        return button
     }
 
     private func showSavedToast() {
@@ -244,7 +250,79 @@ final class VideoResultViewController: UIViewController {
     }
 
     @objc private func downloadTapped() {
-        showSavedToast()
+        downloadButton.isEnabled = false
+        downloadButton.alpha = 0.55
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+                guard status == .authorized || status == .limited else {
+                    throw VideoSaveError.photoAccessDenied
+                }
+
+                let (localURL, shouldDelete) = try await localVideoURLForSaving()
+                defer {
+                    if shouldDelete { try? FileManager.default.removeItem(at: localURL) }
+                }
+                try await saveVideoToPhotoLibrary(at: localURL)
+                showSavedToast()
+            } catch {
+                showSaveError(error)
+            }
+            downloadButton.isEnabled = true
+            downloadButton.alpha = 1
+        }
+    }
+
+    private func localVideoURLForSaving() async throws -> (URL, Bool) {
+        guard !playbackURL.isFileURL else { return (playbackURL, false) }
+
+        let (downloadedURL, response) = try await URLSession.shared.download(from: playbackURL)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw VideoSaveError.downloadFailed
+        }
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(playbackURL.pathExtension.isEmpty ? "mp4" : playbackURL.pathExtension)
+        try FileManager.default.moveItem(at: downloadedURL, to: destination)
+        return (destination, true)
+    }
+
+    private func saveVideoToPhotoLibrary(at url: URL) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+            } completionHandler: { success, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if success {
+                    continuation.resume(returning: ())
+                } else {
+                    continuation.resume(throwing: VideoSaveError.saveFailed)
+                }
+            }
+        }
+    }
+
+    private func showSaveError(_ error: Error) {
+        let alert = UIAlertController(title: "Couldn’t save video", message: error.localizedDescription, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+}
+
+private enum VideoSaveError: LocalizedError {
+    case photoAccessDenied
+    case downloadFailed
+    case saveFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .photoAccessDenied: return "Allow access to Photos in Settings to save videos."
+        case .downloadFailed: return "The video could not be downloaded."
+        case .saveFailed: return "The video could not be added to your photo library."
+        }
     }
 }
 
