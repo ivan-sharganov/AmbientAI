@@ -8,12 +8,14 @@ final class PaywallViewController: UIViewController {
     private let closeButton = UIButton(type: .system)
     private let unlockButton = UIButton(type: .system)
     private let yearPlan = PaywallPlanControl(
-        title: "Year $1.27 / week",
+        title: "Year $1.27",
+        suffix: "/ week",
         subtitle: "$ 69.99",
         badge: "SAVE 80%"
     )
     private let monthPlan = PaywallPlanControl(
-        title: "Month $1.99 / week",
+        title: "Month $1.99",
+        suffix: "/ week",
         subtitle: "$ 7.99",
         badge: nil
     )
@@ -41,97 +43,110 @@ final class PaywallViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.backgroundColor = DesignSystem.Color.background
-
-        let background = GradientView(
-            colors: [UIColor(red: 0.22, green: 0.18, blue: 0.31, alpha: 1), DesignSystem.Color.background],
-            startPoint: CGPoint(x: 0.25, y: 0),
-            endPoint: CGPoint(x: 0.55, y: 0.46)
-        )
-        view.addSubview(background)
-        background.pinToSuperviewEdges()
-
+        view.backgroundColor = PaywallStyle.background
+        setupBackgroundGlows()
         configureCloseButton()
 
         let titleLabel = UILabel()
         titleLabel.text = "Create anything\nyou want"
         titleLabel.textColor = .white
-        titleLabel.font = UIFont.systemFont(ofSize: 34, weight: .bold)
+        titleLabel.font = .paywallInter(size: 34, weight: .bold)
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 2
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let benefits = UIStackView(axis: .vertical, spacing: 17)
-        benefits.addArrangedSubview(makeBenefit(symbol: "sparkles", text: "Get results in seconds"))
-        benefits.addArrangedSubview(makeBenefit(symbol: "wand.and.stars", text: "Turn any text into better writing"))
-        benefits.addArrangedSubview(makeBenefit(symbol: "text.badge.checkmark", text: "Simplify complex information"))
-        benefits.addArrangedSubview(makeBenefit(symbol: "photo.badge.checkmark", text: "Create content with AI templates"))
+        let benefits = UIStackView(axis: .vertical, spacing: 8)
+        benefits.addArrangedSubview(makeBenefit(imageName: "PaywallBenefitSpeed", text: "Get results in seconds"))
+        benefits.addArrangedSubview(makeBenefit(imageName: "PaywallBenefitWriting", text: "Turn any text into better writing"))
+        benefits.addArrangedSubview(makeBenefit(imageName: "PaywallBenefitSimplify", text: "Simplify complex information"))
+        benefits.addArrangedSubview(makeBenefit(imageName: "PaywallBenefitTemplate", text: "Create content with AI templates"))
 
         yearPlan.addTarget(self, action: #selector(planTapped(_:)), for: .touchUpInside)
         monthPlan.addTarget(self, action: #selector(planTapped(_:)), for: .touchUpInside)
         let plans = UIStackView(axis: .vertical, spacing: 12)
         plans.addArrangedSubview(yearPlan)
         plans.addArrangedSubview(monthPlan)
-        yearPlan.heightAnchor.constraint(equalToConstant: 70).isActive = true
-        monthPlan.heightAnchor.constraint(equalToConstant: 70).isActive = true
 
-        let cancelLabel = UILabel()
-        cancelLabel.text = "◷  Cancel Anytime"
-        cancelLabel.textColor = DesignSystem.Color.mutedText
-        cancelLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
-        cancelLabel.textAlignment = .center
+        let mainContent = UIStackView(axis: .vertical, spacing: 0, alignment: .center)
+        mainContent.addArrangedSubview(titleLabel)
+        mainContent.setCustomSpacing(32, after: titleLabel)
+        mainContent.addArrangedSubview(benefits)
+        mainContent.setCustomSpacing(32, after: benefits)
+        mainContent.addArrangedSubview(plans)
+        view.addSubview(mainContent)
 
-        unlockButton.setTitle("Unlock now", for: .normal)
-        unlockButton.setTitleColor(.white, for: .normal)
-        unlockButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .bold)
-        unlockButton.layer.cornerRadius = 24
-        unlockButton.clipsToBounds = true
-        unlockButton.addTarget(self, action: #selector(unlockTapped), for: .touchUpInside)
-        unlockButton.translatesAutoresizingMaskIntoConstraints = false
-        unlockButton.heightAnchor.constraint(equalToConstant: 52).isActive = true
-
-        let buttonGradient = GradientView(
-            colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink],
-            startPoint: CGPoint(x: 0, y: 0.5),
-            endPoint: CGPoint(x: 1, y: 0.5)
-        )
-        buttonGradient.isUserInteractionEnabled = false
-        unlockButton.insertSubview(buttonGradient, at: 0)
-        buttonGradient.pinToSuperviewEdges()
-
-        let legalRow = UIStackView(axis: .horizontal, spacing: 8, alignment: .center, distribution: .equalSpacing)
-        legalRow.addArrangedSubview(makeLinkButton(title: "Privacy Policy", selector: #selector(privacyTapped)))
-        legalRow.addArrangedSubview(makeLinkButton(title: "Restore Purchases", selector: #selector(restoreTapped)))
-        legalRow.addArrangedSubview(makeLinkButton(title: "Terms of Use", selector: #selector(termsTapped)))
-
-        let content = UIStackView(axis: .vertical, spacing: 0)
-        content.addArrangedSubview(titleLabel)
-        content.setCustomSpacing(34, after: titleLabel)
-        content.addArrangedSubview(benefits)
-        content.setCustomSpacing(32, after: benefits)
-        content.addArrangedSubview(plans)
-        content.setCustomSpacing(20, after: plans)
-        content.addArrangedSubview(cancelLabel)
-        content.setCustomSpacing(18, after: cancelLabel)
-        content.addArrangedSubview(unlockButton)
-        content.setCustomSpacing(14, after: unlockButton)
-        content.addArrangedSubview(legalRow)
-        view.addSubview(content)
+        let cancelRow = makeCancelRow()
+        configureUnlockButton()
+        let legalRow = makeLegalRow()
+        let bottomBar = UIStackView(axis: .vertical, spacing: 0)
+        bottomBar.addArrangedSubview(cancelRow)
+        bottomBar.addArrangedSubview(unlockButton)
+        bottomBar.addArrangedSubview(legalRow)
+        view.addSubview(bottomBar)
 
         NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
-            content.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
-            content.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 78),
-            content.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
-            content.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 58),
+            bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
-            legalRow.heightAnchor.constraint(equalToConstant: 24)
+            cancelRow.heightAnchor.constraint(equalToConstant: 40),
+            unlockButton.heightAnchor.constraint(equalToConstant: 50),
+            legalRow.heightAnchor.constraint(equalToConstant: 39),
+
+            mainContent.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            mainContent.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            mainContent.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -18),
+
+            titleLabel.heightAnchor.constraint(equalToConstant: 82),
+            benefits.widthAnchor.constraint(equalToConstant: 282),
+            plans.widthAnchor.constraint(equalTo: mainContent.widthAnchor),
+            yearPlan.heightAnchor.constraint(equalToConstant: 72),
+            monthPlan.heightAnchor.constraint(equalToConstant: 72)
         ])
     }
 
+    private func setupBackgroundGlows() {
+        addGlow(
+            named: "PaywallGlowTop",
+            nodeSize: CGSize(width: 619.208, height: 246.408),
+            center: CGPoint(x: 254.65, y: 83.43),
+            rotation: 18.36,
+            imageFrame: CGRect(x: -100, y: -100, width: 819.208, height: 446.408)
+        )
+        addGlow(
+            named: "PaywallGlowLeft",
+            nodeSize: CGSize(width: 232.289, height: 380.115),
+            center: CGPoint(x: 172.87, y: 215.15),
+            rotation: 89.27,
+            imageFrame: CGRect(x: -108.1, y: -108.1, width: 448.489, height: 596.315)
+        )
+        addGlow(
+            named: "PaywallGlowRight",
+            nodeSize: CGSize(width: 232.289, height: 312.319),
+            center: CGPoint(x: 473.62, y: 265.12),
+            rotation: 89.27,
+            imageFrame: CGRect(x: -108.1, y: -108.1, width: 448.489, height: 528.519)
+        )
+    }
+
+    private func addGlow(named name: String, nodeSize: CGSize, center: CGPoint, rotation: CGFloat, imageFrame: CGRect) {
+        let node = UIView(frame: CGRect(origin: .zero, size: nodeSize))
+        node.center = center
+        node.transform = CGAffineTransform(rotationAngle: rotation * .pi / 180)
+        node.isUserInteractionEnabled = false
+
+        let glow = UIImageView(image: UIImage(named: name))
+        glow.contentMode = .scaleToFill
+        glow.frame = imageFrame
+        glow.isUserInteractionEnabled = false
+        node.addSubview(glow)
+        view.addSubview(node)
+    }
+
     private func configureCloseButton() {
-        let configuration = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        let configuration = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         closeButton.setImage(UIImage(systemName: "xmark", withConfiguration: configuration), for: .normal)
-        closeButton.tintColor = UIColor.white.withAlphaComponent(0.64)
+        closeButton.tintColor = UIColor.white.withAlphaComponent(0.7)
         closeButton.alpha = 0
         closeButton.isHidden = true
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
@@ -139,41 +154,116 @@ final class PaywallViewController: UIViewController {
         view.addSubview(closeButton)
 
         NSLayoutConstraint.activate([
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            closeButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
-            closeButton.widthAnchor.constraint(equalToConstant: 42),
-            closeButton.heightAnchor.constraint(equalToConstant: 42)
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 21),
+            closeButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 6),
+            closeButton.widthAnchor.constraint(equalToConstant: 44),
+            closeButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
 
-    private func makeBenefit(symbol: String, text: String) -> UIView {
-        let icon = UIImageView(image: UIImage(systemName: symbol))
-        icon.tintColor = DesignSystem.Color.pink
+    private func makeBenefit(imageName: String, text: String) -> UIView {
+        let row = UIView()
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.heightAnchor.constraint(equalToConstant: 32).isActive = true
+
+        let icon = UIImageView(image: UIImage(named: imageName))
         icon.contentMode = .scaleAspectFit
         icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 23),
-            icon.heightAnchor.constraint(equalToConstant: 23)
-        ])
 
         let label = UILabel()
         label.text = text
         label.textColor = .white
-        label.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        label.font = .paywallInter(size: 16, weight: .medium)
         label.adjustsFontSizeToFitWidth = true
-        label.minimumScaleFactor = 0.8
+        label.minimumScaleFactor = 0.9
+        label.translatesAutoresizingMaskIntoConstraints = false
 
-        let row = UIStackView(axis: .horizontal, spacing: 13, alignment: .center)
-        row.addArrangedSubview(icon)
-        row.addArrangedSubview(label)
+        row.addSubview(icon)
+        row.addSubview(label)
+        NSLayoutConstraint.activate([
+            icon.leadingAnchor.constraint(equalTo: row.leadingAnchor),
+            icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 24),
+            icon.heightAnchor.constraint(equalToConstant: 24),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: row.trailingAnchor),
+            label.centerYAnchor.constraint(equalTo: row.centerYAnchor)
+        ])
         return row
     }
 
-    private func makeLinkButton(title: String, selector: Selector) -> UIButton {
+    private func makeCancelRow() -> UIView {
+        let symbolConfiguration = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+        let iconName = "clock.arrow.trianglehead.counterclockwise.rotate.90"
+        let image = UIImage(systemName: iconName, withConfiguration: symbolConfiguration)
+            ?? UIImage(systemName: "clock.arrow.circlepath", withConfiguration: symbolConfiguration)
+        let icon = UIImageView(image: image)
+        icon.tintColor = PaywallStyle.secondaryText
+        icon.contentMode = .scaleAspectFit
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.widthAnchor.constraint(equalToConstant: 12).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 12).isActive = true
+
+        let iconContainer = UIView()
+        iconContainer.translatesAutoresizingMaskIntoConstraints = false
+        iconContainer.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        iconContainer.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        iconContainer.addSubview(icon)
+        NSLayoutConstraint.activate([
+            icon.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
+            icon.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor)
+        ])
+
+        let label = UILabel()
+        label.text = "Cancel Anytime"
+        label.textColor = PaywallStyle.secondaryText
+        label.font = UIFont.systemFont(ofSize: 12, weight: .regular)
+
+        let row = UIStackView(axis: .horizontal, spacing: 0, alignment: .center)
+        row.addArrangedSubview(iconContainer)
+        row.addArrangedSubview(label)
+        let container = UIView()
+        container.addSubview(row)
+        NSLayoutConstraint.activate([
+            row.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            row.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+        ])
+        return container
+    }
+
+    private func configureUnlockButton() {
+        unlockButton.setTitle("Unlock now", for: .normal)
+        unlockButton.setTitleColor(.white, for: .normal)
+        unlockButton.titleLabel?.font = .paywallInter(size: 16, weight: .semiBold)
+        unlockButton.layer.cornerRadius = 24
+        unlockButton.clipsToBounds = true
+        unlockButton.addTarget(self, action: #selector(unlockTapped), for: .touchUpInside)
+        unlockButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let gradient = GradientView(
+            colors: [PaywallStyle.blue, PaywallStyle.pink],
+            startPoint: CGPoint(x: 0, y: 0.5),
+            endPoint: CGPoint(x: 1, y: 0.5)
+        )
+        gradient.isUserInteractionEnabled = false
+        unlockButton.insertSubview(gradient, at: 0)
+        gradient.pinToSuperviewEdges()
+    }
+
+    private func makeLegalRow() -> UIView {
+        let row = UIStackView(axis: .horizontal, spacing: 12, alignment: .center, distribution: .fillEqually)
+        row.addArrangedSubview(makeLinkButton(title: "Privacy Policy", alignment: .left, selector: #selector(privacyTapped)))
+        row.addArrangedSubview(makeLinkButton(title: "Restore Purchases", alignment: .center, selector: #selector(restoreTapped)))
+        row.addArrangedSubview(makeLinkButton(title: "Terms of Use", alignment: .right, selector: #selector(termsTapped)))
+        return row
+    }
+
+    private func makeLinkButton(title: String, alignment: UIControl.ContentHorizontalAlignment, selector: Selector) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
-        button.setTitleColor(DesignSystem.Color.mutedText, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 9, weight: .regular)
+        button.setTitleColor(PaywallStyle.secondaryText, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 11, weight: .regular)
+        button.contentHorizontalAlignment = alignment
         button.addTarget(self, action: selector, for: .touchUpInside)
         return button
     }
@@ -187,10 +277,8 @@ final class PaywallViewController: UIViewController {
     private func scheduleCloseButtonAppearance() {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            self.closeButton.isHidden = false
-            UIView.animate(withDuration: 0.3) {
-                self.closeButton.alpha = 1
-            }
+            closeButton.isHidden = false
+            UIView.animate(withDuration: 0.3) { self.closeButton.alpha = 1 }
         }
         closeWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: workItem)
@@ -202,25 +290,16 @@ final class PaywallViewController: UIViewController {
         present(alert, animated: true)
     }
 
-    @objc private func planTapped(_ sender: PaywallPlanControl) {
-        selectPlan(sender)
-    }
-
-    @objc private func closeTapped() {
-        onClose?()
-    }
+    @objc private func planTapped(_ sender: PaywallPlanControl) { selectPlan(sender) }
+    @objc private func closeTapped() { onClose?() }
 
     @objc private func unlockTapped() {
         let plan: ApphudPlan = selectedPlan === yearPlan ? .year : .month
-        performPurchaseOperation { [apphudService] in
-            try await apphudService.purchase(plan: plan)
-        }
+        performPurchaseOperation { [apphudService] in try await apphudService.purchase(plan: plan) }
     }
 
     @objc private func restoreTapped() {
-        performPurchaseOperation { [apphudService] in
-            try await apphudService.restorePurchases()
-        }
+        performPurchaseOperation { [apphudService] in try await apphudService.restorePurchases() }
     }
 
     @objc private func privacyTapped() {
@@ -238,9 +317,7 @@ final class PaywallViewController: UIViewController {
             do {
                 let hasAccess = try await operation()
                 setPurchasing(false)
-                if hasAccess {
-                    onUnlock?()
-                }
+                if hasAccess { onUnlock?() }
             } catch {
                 setPurchasing(false)
                 showPlaceholderAlert(title: "Purchase unavailable", message: error.localizedDescription)
@@ -265,9 +342,9 @@ private final class PaywallPlanControl: UIControl {
         didSet { updateAppearance() }
     }
 
-    init(title: String, subtitle: String, badge: String?) {
+    init(title: String, suffix: String, subtitle: String, badge: String?) {
         super.init(frame: .zero)
-        setupUI(title: title, subtitle: subtitle, badge: badge)
+        setupUI(title: title, suffix: suffix, subtitle: subtitle, badge: badge)
     }
 
     required init?(coder: NSCoder) {
@@ -278,95 +355,142 @@ private final class PaywallPlanControl: UIControl {
         super.layoutSubviews()
         borderGradient.frame = bounds
         borderMask.frame = bounds
-        borderMask.path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.75, dy: 0.75), cornerRadius: 20).cgPath
+        borderMask.path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 22).cgPath
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard isUserInteractionEnabled, !isHidden, alpha > 0.01, self.point(inside: point, with: event) else {
-            return nil
-        }
+        guard isUserInteractionEnabled, !isHidden, alpha > 0.01, self.point(inside: point, with: event) else { return nil }
         return self
     }
 
-    private func setupUI(title: String, subtitle: String, badge: String?) {
-        backgroundColor = UIColor.white.withAlphaComponent(0.025)
-        layer.cornerRadius = 20
-        layer.borderWidth = 1
-        layer.borderColor = UIColor.white.withAlphaComponent(0.24).cgColor
+    private func setupUI(title: String, suffix: String, subtitle: String, badge: String?) {
+        backgroundColor = .clear
+        layer.cornerRadius = 24
+        layer.cornerCurve = .continuous
 
-        borderGradient.colors = [DesignSystem.Color.lavender.cgColor, DesignSystem.Color.pink.cgColor]
+        let normalBorder = UIColor.white.withAlphaComponent(0.3).cgColor
+        borderGradient.colors = [normalBorder, normalBorder]
         borderGradient.startPoint = CGPoint(x: 0, y: 0.5)
         borderGradient.endPoint = CGPoint(x: 1, y: 0.5)
         borderGradient.mask = borderMask
-        borderGradient.isHidden = true
         layer.addSublayer(borderGradient)
 
         borderMask.fillColor = UIColor.clear.cgColor
         borderMask.strokeColor = UIColor.black.cgColor
-        borderMask.lineWidth = 1.5
+        borderMask.lineWidth = 1
 
         let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.textColor = .white
-        titleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        let text = NSMutableAttributedString(
+            string: title,
+            attributes: [.font: UIFont.paywallInter(size: 16, weight: .medium), .foregroundColor: UIColor.white]
+        )
+        text.append(NSAttributedString(
+            string: " \(suffix)",
+            attributes: [.font: UIFont.paywallInter(size: 16, weight: .regular), .foregroundColor: UIColor.white]
+        ))
+        titleLabel.attributedText = text
 
         let subtitleLabel = UILabel()
         subtitleLabel.text = subtitle
-        subtitleLabel.textColor = DesignSystem.Color.mutedText
-        subtitleLabel.font = UIFont.systemFont(ofSize: 13, weight: .regular)
+        subtitleLabel.textColor = PaywallStyle.secondaryText
+        subtitleLabel.font = .paywallInter(size: 14, weight: .regular)
 
-        let textStack = UIStackView(axis: .vertical, spacing: 5)
+        let textStack = UIStackView(axis: .vertical, spacing: 4, alignment: .leading)
         textStack.addArrangedSubview(titleLabel)
         textStack.addArrangedSubview(subtitleLabel)
         addSubview(textStack)
 
         NSLayoutConstraint.activate([
-            textStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
+            textStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
             textStack.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
 
         if let badge {
-            let badgeLabel = PaddingLabel(insets: UIEdgeInsets(top: 6, left: 13, bottom: 6, right: 13))
-            badgeLabel.text = badge
-            badgeLabel.textColor = .white
-            badgeLabel.font = UIFont.systemFont(ofSize: 12, weight: .bold)
-            badgeLabel.backgroundColor = DesignSystem.Color.pink
-            badgeLabel.layer.cornerRadius = 13
-            badgeLabel.clipsToBounds = true
-            badgeLabel.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(badgeLabel)
-
+            let badgeView = PaywallBadgeView(text: badge)
+            addSubview(badgeView)
             NSLayoutConstraint.activate([
-                badgeLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -17),
-                badgeLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
+                badgeView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+                badgeView.topAnchor.constraint(equalTo: titleLabel.topAnchor),
+                badgeView.heightAnchor.constraint(equalToConstant: 25)
             ])
         }
     }
 
     private func updateAppearance() {
-        borderGradient.isHidden = !isPlanSelected
-        layer.borderColor = isPlanSelected ? UIColor.clear.cgColor : UIColor.white.withAlphaComponent(0.24).cgColor
+        let normalBorder = UIColor.white.withAlphaComponent(0.3).cgColor
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        borderGradient.colors = isPlanSelected
+            ? [PaywallStyle.blue.cgColor, PaywallStyle.pink.cgColor]
+            : [normalBorder, normalBorder]
+        CATransaction.commit()
     }
 }
 
-private final class PaddingLabel: UILabel {
-    private let insets: UIEdgeInsets
-
-    init(insets: UIEdgeInsets) {
-        self.insets = insets
+private final class PaywallBadgeView: UIView {
+    init(text: String) {
         super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        layer.cornerRadius = 13
+        layer.masksToBounds = true
+
+        let gradient = GradientView(
+            colors: [PaywallStyle.blue, PaywallStyle.pink],
+            startPoint: CGPoint(x: 0, y: 0.5),
+            endPoint: CGPoint(x: 1, y: 0.5)
+        )
+        gradient.isUserInteractionEnabled = false
+        addSubview(gradient)
+        gradient.pinToSuperviewEdges()
+
+        let label = UILabel()
+        label.text = text
+        label.textColor = .white
+        label.font = .paywallInter(size: 14, weight: .medium)
+        label.textAlignment = .center
+        addSubview(label)
+        label.pinToSuperviewEdges(insets: UIEdgeInsets(top: 5, left: 16, bottom: 5, right: 16))
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+}
 
-    override func drawText(in rect: CGRect) {
-        super.drawText(in: rect.inset(by: insets))
+private enum PaywallStyle {
+    static let background = UIColor(red: 11 / 255, green: 7 / 255, blue: 14 / 255, alpha: 1)
+    static let secondaryText = UIColor(red: 96 / 255, green: 96 / 255, blue: 96 / 255, alpha: 1)
+    static let blue = UIColor(red: 152 / 255, green: 198 / 255, blue: 247 / 255, alpha: 1)
+    static let pink = UIColor(red: 235 / 255, green: 91 / 255, blue: 146 / 255, alpha: 1)
+}
+
+private extension UIFont {
+    enum PaywallWeight {
+        case regular
+        case medium
+        case semiBold
+        case bold
+
+        var postScriptName: String {
+            switch self {
+            case .regular: return "Inter-Regular"
+            case .medium: return "Inter-Medium"
+            case .semiBold: return "Inter-SemiBold"
+            case .bold: return "Inter-Bold"
+            }
+        }
+
+        var fallback: UIFont.Weight {
+            switch self {
+            case .regular: return .regular
+            case .medium: return .medium
+            case .semiBold: return .semibold
+            case .bold: return .bold
+            }
+        }
     }
 
-    override var intrinsicContentSize: CGSize {
-        let size = super.intrinsicContentSize
-        return CGSize(width: size.width + insets.left + insets.right, height: size.height + insets.top + insets.bottom)
+    static func paywallInter(size: CGFloat, weight: PaywallWeight) -> UIFont {
+        UIFont(name: weight.postScriptName, size: size) ?? .systemFont(ofSize: size, weight: weight.fallback)
     }
 }
