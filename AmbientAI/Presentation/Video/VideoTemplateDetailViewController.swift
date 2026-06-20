@@ -301,42 +301,22 @@ extension VideoTemplateDetailViewController: UICollectionViewDataSource, UIColle
 
 private final class VideoCarouselCell: UICollectionViewCell {
     static let reuseIdentifier = "VideoCarouselCell"
-    private let artwork = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink])
-    private let iconView = UIImageView()
-    private let titleLabel = UILabel()
-    private let subtitleLabel = UILabel()
+    private let artwork = UIImageView(image: UIImage(named: "VideoTemplateFallback"))
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         contentView.layer.cornerRadius = 18
+        contentView.layer.cornerCurve = .continuous
         contentView.clipsToBounds = true
+        artwork.contentMode = .scaleAspectFill
+        artwork.clipsToBounds = true
+        artwork.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(artwork)
         artwork.pinToSuperviewEdges()
-        iconView.tintColor = .white.withAlphaComponent(0.84)
-        iconView.contentMode = .scaleAspectFit
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.textColor = .white
-        titleLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.72)
-        subtitleLabel.font = DesignSystem.Font.caption
-        subtitleLabel.numberOfLines = 2
-        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(iconView)
-        contentView.addSubview(titleLabel)
-        contentView.addSubview(subtitleLabel)
-        NSLayoutConstraint.activate([
-            iconView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor), iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: -28), iconView.widthAnchor.constraint(equalToConstant: 76), iconView.heightAnchor.constraint(equalToConstant: 76),
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18), titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -18), titleLabel.bottomAnchor.constraint(equalTo: subtitleLabel.topAnchor, constant: -6),
-            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor), subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor), subtitleLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
-        ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(template: VideoTemplate) {
-        artwork.update(colors: template.gradient)
-        iconView.image = UIImage(systemName: template.symbolName)
-        titleLabel.text = template.title
-        subtitleLabel.text = template.subtitle
+        artwork.image = UIImage(named: "VideoTemplateFallback")
     }
 }
