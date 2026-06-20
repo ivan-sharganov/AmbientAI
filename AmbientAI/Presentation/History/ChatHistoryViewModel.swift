@@ -19,8 +19,10 @@ final class ChatHistoryViewModel {
     }
 
     func reload() async {
+        onStateChange?(.loading)
         do {
-            let sessions = try await repository.loadSessions().filter { !$0.messages.isEmpty }
+            let sessions = try await repository.loadSessions()
+            print("[Dola] Displaying \(sessions.count) chats in history UI")
             sections = Self.group(sessions: sessions)
             onStateChange?(sessions.isEmpty ? .empty : .loaded(sections))
         } catch {
@@ -41,7 +43,7 @@ final class ChatHistoryViewModel {
         Task {
             do {
                 try await repository.deleteSession(id: session.id)
-                let sessions = try await repository.loadSessions().filter { !$0.messages.isEmpty }
+                let sessions = try await repository.loadSessions()
                 sections = Self.group(sessions: sessions)
 
                 let result = HistoryDeleteResult(
@@ -96,6 +98,7 @@ struct HistoryDeleteResult: Equatable {
 }
 
 enum ChatHistoryState: Equatable {
+    case loading
     case loaded([ChatHistorySection])
     case empty
 }

@@ -8,6 +8,7 @@ final class ChatViewController: UIViewController {
     private let headerView = UIView()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let emptyStateStack = UIStackView(axis: .vertical, spacing: 8, alignment: .center)
+    private let messagesLoadingIndicator = UIActivityIndicatorView(style: .large)
     private let inputContainer = UIView()
     private let inputTextView = UITextView()
     private let sendButton = IconButton(systemName: "paperplane.fill", pointSize: 15)
@@ -57,6 +58,7 @@ final class ChatViewController: UIViewController {
         setupInputBar()
         setupTableView()
         setupEmptyState()
+        setupMessagesLoadingIndicator()
     }
 
     private func setupHeader() {
@@ -246,15 +248,40 @@ final class ChatViewController: UIViewController {
         ])
     }
 
+    private func setupMessagesLoadingIndicator() {
+        messagesLoadingIndicator.color = DesignSystem.Color.lavender
+        messagesLoadingIndicator.hidesWhenStopped = true
+        messagesLoadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(messagesLoadingIndicator)
+        NSLayoutConstraint.activate([
+            messagesLoadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            messagesLoadingIndicator.centerYAnchor.constraint(equalTo: tableView.centerYAnchor)
+        ])
+    }
+
     private func render(_ state: ChatViewState) {
         switch state {
+        case .loadingMessages:
+            messages = []
+            isLoadingResponse = false
+            tableView.reloadData()
+            emptyStateStack.isHidden = true
+            messagesLoadingIndicator.startAnimating()
+            inputContainer.isUserInteractionEnabled = false
+            inputContainer.alpha = 0.55
         case let .loaded(messages, isLoadingResponse):
+            messagesLoadingIndicator.stopAnimating()
+            inputContainer.isUserInteractionEnabled = true
+            inputContainer.alpha = 1
             self.messages = messages
             self.isLoadingResponse = isLoadingResponse
             emptyStateStack.isHidden = !messages.isEmpty || isLoadingResponse
             tableView.reloadData()
             scrollToBottom()
         case let .error(message):
+            messagesLoadingIndicator.stopAnimating()
+            inputContainer.isUserInteractionEnabled = true
+            inputContainer.alpha = 1
             showError(message)
         }
     }

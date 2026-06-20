@@ -55,6 +55,7 @@ final class ChatViewModel {
     private func bootstrap() async {
         do {
             if let session {
+                onStateChange?(.loadingMessages)
                 let messages = try await repository.loadMessages(for: session.id)
                 var updated = session
                 updated.messages = messages
@@ -63,8 +64,6 @@ final class ChatViewModel {
                 return
             }
 
-            let newSession = try await repository.createSession(initialPrompt: initialPrompt)
-            session = newSession
             onStateChange?(.loaded(messages: [], isLoadingResponse: false))
 
             if let initialPrompt, !initialPrompt.isEmpty {
@@ -84,6 +83,7 @@ final class ChatViewModel {
 }
 
 enum ChatViewState: Equatable {
+    case loadingMessages
     case loaded(messages: [ChatMessage], isLoadingResponse: Bool)
     case error(String)
 }

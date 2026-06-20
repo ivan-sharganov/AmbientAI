@@ -5,6 +5,7 @@ final class ChatHistoryViewController: UIViewController {
     private let headerView = UIView()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let emptyStateView = UIStackView(axis: .vertical, spacing: 10, alignment: .center)
+    private let loadingIndicator = UIActivityIndicatorView(style: .large)
 
     init(viewModel: ChatHistoryViewModel) {
         self.viewModel = viewModel
@@ -40,6 +41,7 @@ final class ChatHistoryViewController: UIViewController {
         setupHeader()
         setupTable()
         setupEmptyState()
+        setupLoadingIndicator()
     }
 
     private func setupHeader() {
@@ -127,13 +129,30 @@ final class ChatHistoryViewController: UIViewController {
         ])
     }
 
+    private func setupLoadingIndicator() {
+        loadingIndicator.color = DesignSystem.Color.lavender
+        loadingIndicator.hidesWhenStopped = true
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(loadingIndicator)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: tableView.centerYAnchor)
+        ])
+    }
+
     private func render(_ state: ChatHistoryState) {
         switch state {
+        case .loading:
+            tableView.isHidden = true
+            emptyStateView.isHidden = true
+            loadingIndicator.startAnimating()
         case .loaded:
+            loadingIndicator.stopAnimating()
             emptyStateView.isHidden = true
             tableView.isHidden = false
             tableView.reloadData()
         case .empty:
+            loadingIndicator.stopAnimating()
             tableView.isHidden = true
             emptyStateView.isHidden = false
         }
