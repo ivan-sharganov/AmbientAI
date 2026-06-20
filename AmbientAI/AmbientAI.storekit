@@ -1,0 +1,101 @@
+{
+  "identifier" : "A11CE001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "A11CE100",
+      "localizations" : [
+
+      ],
+      "name" : "AmbientAI Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A11CE101",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Weekly access to all AmbientAI features",
+              "displayName" : "AmbientAI Weekly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "week_4.99_nottrial",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "AmbientAI Weekly",
+          "subscriptionGroupID" : "A11CE100",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "A11CE102",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Yearly access to all AmbientAI features",
+              "displayName" : "AmbientAI Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "year_39.99_nottrial",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "AmbientAI Yearly",
+          "subscriptionGroupID" : "A11CE100",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
