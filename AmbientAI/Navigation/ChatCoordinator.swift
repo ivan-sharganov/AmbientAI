@@ -25,28 +25,45 @@ final class ChatCoordinator: Coordinator {
     func start() {
         let viewModel = HomeViewModel(repository: repository, apphudService: apphudService)
         viewModel.onStartChat = { [weak self] prompt in
-            self?.showChat(initialPrompt: prompt)
+            self?.requirePremium { [weak self] in self?.showChat(initialPrompt: prompt) }
         }
         viewModel.onOpenWriting = { [weak self] in
-            self?.showWriting()
+            self?.requirePremium { [weak self] in self?.showWriting() }
         }
         viewModel.onOpenVideoTemplates = { [weak self] in
-            self?.showVideoTemplates()
+            self?.requirePremium { [weak self] in self?.showVideoTemplates() }
         }
         viewModel.onOpenHistory = { [weak self] in
             self?.showHistory()
-        }
-        viewModel.onOpenPaywall = { [weak self] in
-            self?.showPaywall()
         }
         let controller = HomeViewController(viewModel: viewModel)
         navigationController.setViewControllers([controller], animated: false)
     }
 
-    private func showPaywall() {
-        let controller = PaywallViewController()
+    private func requirePremium(perform action: @escaping () -> Void) {
+        Task { [weak self] in
+            guard let self else { return }
+            await apphudService.refreshStatus()
+            if apphudService.isPremium {
+                action()
+            } else {
+                showPaywall(afterUnlock: action)
+            }
+        }
+    }
+
+    private func showPaywall(afterUnlock action: (() -> Void)? = nil) {
+        if navigationController.topViewController is PaywallViewController { return }
+        let controller = PaywallViewController(apphudService: apphudService)
         controller.onClose = { [weak self] in
             self?.navigationController.popViewController(animated: true)
+        }
+        controller.onUnlock = { [weak self, weak controller] in
+            guard let self, let controller else { return }
+            var stack = navigationController.viewControllers
+            stack.removeAll(where: { $0 === controller })
+            navigationController.setViewControllers(stack, animated: false)
+            action?()
         }
         navigationController.pushViewController(controller, animated: true)
     }

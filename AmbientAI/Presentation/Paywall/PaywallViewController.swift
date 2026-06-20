@@ -2,8 +2,11 @@ import UIKit
 
 final class PaywallViewController: UIViewController {
     var onClose: (() -> Void)?
+    var onUnlock: (() -> Void)?
 
+    private let apphudService: ApphudServiceProtocol
     private let closeButton = UIButton(type: .system)
+    private let unlockButton = UIButton(type: .system)
     private let yearPlan = PaywallPlanControl(
         title: "Year $1.27 / week",
         subtitle: "$ 69.99",
@@ -16,6 +19,15 @@ final class PaywallViewController: UIViewController {
     )
     private var selectedPlan: PaywallPlanControl?
     private var closeWorkItem: DispatchWorkItem?
+
+    init(apphudService: ApphudServiceProtocol) {
+        self.apphudService = apphudService
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -68,7 +80,6 @@ final class PaywallViewController: UIViewController {
         cancelLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
         cancelLabel.textAlignment = .center
 
-        let unlockButton = UIButton(type: .system)
         unlockButton.setTitle("Unlock now", for: .normal)
         unlockButton.setTitleColor(.white, for: .normal)
         unlockButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .bold)
@@ -200,12 +211,16 @@ final class PaywallViewController: UIViewController {
     }
 
     @objc private func unlockTapped() {
-        let plan = selectedPlan === yearPlan ? "year" : "month"
-        showPlaceholderAlert(title: "Purchase", message: "Selected plan: \(plan). Apphud purchase will be connected later.")
+        let plan: ApphudPlan = selectedPlan === yearPlan ? .year : .month
+        performPurchaseOperation { [apphudService] in
+            try await apphudService.purchase(plan: plan)
+        }
     }
 
     @objc private func restoreTapped() {
-        showPlaceholderAlert(title: "Restore Purchases", message: "Apphud restore will be connected later.")
+        performPurchaseOperation { [apphudService] in
+            try await apphudService.restorePurchases()
+        }
     }
 
     @objc private func privacyTapped() {
@@ -214,6 +229,31 @@ final class PaywallViewController: UIViewController {
 
     @objc private func termsTapped() {
         showPlaceholderAlert(title: "Terms of Use", message: "Terms of Use URL is not configured yet.")
+    }
+
+    private func performPurchaseOperation(_ operation: @escaping () async throws -> Bool) {
+        setPurchasing(true)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let hasAccess = try await operation()
+                setPurchasing(false)
+                if hasAccess {
+                    onUnlock?()
+                }
+            } catch {
+                setPurchasing(false)
+                showPlaceholderAlert(title: "Purchase unavailable", message: error.localizedDescription)
+            }
+        }
+    }
+
+    private func setPurchasing(_ isPurchasing: Bool) {
+        unlockButton.isEnabled = !isPurchasing
+        yearPlan.isEnabled = !isPurchasing
+        monthPlan.isEnabled = !isPurchasing
+        unlockButton.setTitle(isPurchasing ? "Please wait..." : "Unlock now", for: .normal)
+        unlockButton.alpha = isPurchasing ? 0.65 : 1
     }
 }
 
@@ -239,6 +279,13 @@ private final class PaywallPlanControl: UIControl {
         borderGradient.frame = bounds
         borderMask.frame = bounds
         borderMask.path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.75, dy: 0.75), cornerRadius: 20).cgPath
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard isUserInteractionEnabled, !isHidden, alpha > 0.01, self.point(inside: point, with: event) else {
+            return nil
+        }
+        return self
     }
 
     private func setupUI(title: String, subtitle: String, badge: String?) {

@@ -22,6 +22,15 @@ final class HomeViewController: UIViewController {
 
     private func bind() {
         viewModel.onStateChange = { _ in }
+        viewModel.onApphudLogout = { [weak self] userID, isPremium in
+            let alert = UIAlertController(
+                title: "Apphud user changed",
+                message: "New user_id: \(userID)\nPremium: \(isPremium)",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self?.present(alert, animated: true)
+        }
     }
 
     private func setupUI() {
@@ -45,22 +54,6 @@ final class HomeViewController: UIViewController {
         NSLayoutConstraint.activate([
             settingsButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
             settingsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -22)
-        ])
-
-        let paywallButton = UIButton(type: .system)
-        paywallButton.setTitle("PRO", for: .normal)
-        paywallButton.setTitleColor(.white, for: .normal)
-        paywallButton.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .bold)
-        paywallButton.backgroundColor = DesignSystem.Color.pink
-        paywallButton.layer.cornerRadius = 18
-        paywallButton.addTarget(self, action: #selector(paywallTapped), for: .touchUpInside)
-        paywallButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(paywallButton)
-        NSLayoutConstraint.activate([
-            paywallButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 18),
-            paywallButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 22),
-            paywallButton.widthAnchor.constraint(equalToConstant: 58),
-            paywallButton.heightAnchor.constraint(equalToConstant: 36)
         ])
 
         let heroIcon = UIImageView(image: UIImage(systemName: "sparkles"))
@@ -105,6 +98,24 @@ final class HomeViewController: UIViewController {
         let featureGrid = makeFeatureGrid()
         content.addArrangedSubview(featureGrid)
         featureGrid.heightAnchor.constraint(equalToConstant: 246).isActive = true
+
+#if DEBUG
+        let logoutButton = UIButton(type: .system)
+        logoutButton.setTitle("logout apphud", for: .normal)
+        logoutButton.setTitleColor(UIColor.white.withAlphaComponent(0.18), for: .normal)
+        logoutButton.titleLabel?.font = UIFont.systemFont(ofSize: 10, weight: .regular)
+        logoutButton.backgroundColor = .clear
+        logoutButton.addTarget(self, action: #selector(logoutApphudTapped), for: .touchUpInside)
+        logoutButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(logoutButton)
+        NSLayoutConstraint.activate([
+            logoutButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            logoutButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            logoutButton.widthAnchor.constraint(equalToConstant: 90),
+            logoutButton.heightAnchor.constraint(equalToConstant: 32)
+        ])
+#endif
+
     }
 
     private func makeFeatureGrid() -> UIView {
@@ -298,9 +309,12 @@ final class HomeViewController: UIViewController {
         viewModel.openHistory()
     }
 
-    @objc private func paywallTapped() {
-        viewModel.openPaywall()
+#if DEBUG
+    @objc private func logoutApphudTapped() {
+        viewModel.logoutApphudUser()
     }
+#endif
+
 }
 
 extension HomeViewController: UITextFieldDelegate {

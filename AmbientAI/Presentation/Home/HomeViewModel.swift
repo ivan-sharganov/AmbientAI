@@ -5,8 +5,8 @@ final class HomeViewModel {
     var onOpenWriting: (() -> Void)?
     var onOpenVideoTemplates: (() -> Void)?
     var onOpenHistory: (() -> Void)?
-    var onOpenPaywall: (() -> Void)?
     var onStateChange: ((HomeState) -> Void)?
+    var onApphudLogout: ((String, Bool) -> Void)?
 
     private let repository: ChatRepository
     private let apphudService: ApphudServiceProtocol
@@ -36,9 +36,14 @@ final class HomeViewModel {
         onOpenHistory?()
     }
 
-    func openPaywall() {
-        onOpenPaywall?()
+    func logoutApphudUser() {
+        Task { [weak self] in
+            guard let self else { return }
+            await apphudService.logoutUserForTesting()
+            onApphudLogout?(apphudService.userID, apphudService.isPremium)
+        }
     }
+
 }
 
 enum HomeState: Equatable {
