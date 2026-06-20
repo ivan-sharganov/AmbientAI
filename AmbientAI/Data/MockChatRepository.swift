@@ -1,27 +1,20 @@
 import Foundation
 
 final class MockChatRepository: ChatRepository {
-    private let storage: ChatStorage
-
-    init(storage: ChatStorage) {
-        self.storage = storage
-    }
+    private var sessions: [ChatSession] = []
 
     func loadSessions() async throws -> [ChatSession] {
-        try await storage.loadSessions().sorted { $0.updatedAt > $1.updatedAt }
+        sessions.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     func loadMessages(for sessionID: UUID) async throws -> [ChatMessage] {
-        let sessions = try await storage.loadSessions()
         return sessions.first(where: { $0.id == sessionID })?.messages ?? []
     }
 
     func createSession(initialPrompt: String?) async throws -> ChatSession {
-        var sessions = try await storage.loadSessions()
         let title = initialPrompt?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "New chat"
         let session = ChatSession(title: title)
         sessions.append(session)
-        try await storage.saveSessions(sessions)
         return session
     }
 
@@ -29,7 +22,6 @@ final class MockChatRepository: ChatRepository {
         let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty else { throw ChatRepositoryError.emptyPrompt }
 
-        var sessions = try await storage.loadSessions()
         let index: Int
         if let existingIndex = sessions.firstIndex(where: { $0.id == sessionID }) {
             index = existingIndex
@@ -41,27 +33,22 @@ final class MockChatRepository: ChatRepository {
         sessions[index].messages.append(ChatMessage(role: .user, text: prompt))
         sessions[index].title = sessions[index].messages.first?.text ?? prompt
         sessions[index].updatedAt = Date()
-        try await storage.saveSessions(sessions)
-
         try await Task.sleep(nanoseconds: 2_000_000_000)
-
-        sessions = try await storage.loadSessions()
         guard let refreshedIndex = sessions.firstIndex(where: { $0.id == sessionID }) else {
             throw ChatRepositoryError.sessionNotFound
         }
 
         sessions[refreshedIndex].messages.append(ChatMessage(role: .assistant, text: Self.response(for: prompt)))
         sessions[refreshedIndex].updatedAt = Date()
-        try await storage.saveSessions(sessions)
         return sessions[refreshedIndex]
     }
 
     func deleteSession(id: UUID) async throws {
-        try await storage.deleteSession(id: id)
+        sessions.removeAll { $0.id == id }
     }
 
     func deleteAllSessions() async throws {
-        try await storage.deleteAllSessions()
+        sessions.removeAll()
     }
 
     private static func response(for prompt: String) -> String {

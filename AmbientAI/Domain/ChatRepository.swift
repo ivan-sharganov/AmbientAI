@@ -8,10 +8,3 @@ protocol ChatRepository {
     func deleteSession(id: UUID) async throws
     func deleteAllSessions() async throws
 }
-
-protocol ChatStorage {
-    func loadSessions() async throws -> [ChatSession]
-    func saveSessions(_ sessions: [ChatSession]) async throws
-    func deleteSession(id: UUID) async throws
-    func deleteAllSessions() async throws
-}

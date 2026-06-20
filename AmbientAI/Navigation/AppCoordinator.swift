@@ -6,14 +6,24 @@ protocol Coordinator: AnyObject {
 
 final class AppCoordinator: Coordinator {
     private enum Configuration {
-        static let apphudAPIKey = "app_FmCjFTwjWpcLSafxT8vCDeVffJyfFS"
-        static let dolaAppID = "com.test.test"
-        static let dolaBearerToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJzaGFyb3ZfMTk5OUBsaXN0LnJ1Iiwicm9sZSI6IkFETUlOIiwiZXhwIjo0OTM1MjA4NjcxLCJpYXQiOjE3ODE2MDg2NzEsInR5cGUiOiJhY2Nlc3MifQ.0GRnZq1LZA__0G0tYEsPER8lQiCiX_myE6_T_nMwUmc"
+        static let apphudAPIKey = requiredValue(named: "APPHUD_API_KEY")
+        static let dolaAppID = requiredValue(named: "DOLA_APP_ID")
+        static let dolaBearerToken = requiredValue(named: "DOLA_BEARER_TOKEN")
+
+        private static func requiredValue(named name: String) -> String {
+            guard let value = Bundle.main.object(forInfoDictionaryKey: name) as? String,
+                  !value.isEmpty,
+                  !value.hasPrefix("$(") else {
+                fatalError("Missing required value '\(name)' in Secrets.xcconfig")
+            }
+            return value
+        }
     }
 
     private let window: UIWindow
     private let navigationController: UINavigationController
     private var chatCoordinator: ChatCoordinator?
+    private var apphudService: ApphudService?
 
     init(window: UIWindow) {
         self.window = window
@@ -22,11 +32,11 @@ final class AppCoordinator: Coordinator {
     }
 
     func start() {
-        let storage = FileChatStorage()
+        clearLegacyLocalChatData()
         let apphudService = ApphudService(apiKey: Configuration.apphudAPIKey)
+        self.apphudService = apphudService
         apphudService.start()
         let repository = DolaChatRepository(
-            storage: storage,
             appID: Configuration.dolaAppID,
             bearerToken: Configuration.dolaBearerToken,
             userIDProvider: { apphudService.userID }
@@ -53,5 +63,23 @@ final class AppCoordinator: Coordinator {
 
         window.rootViewController = navigationController
         window.makeKeyAndVisible()
+    }
+
+    func applicationDidBecomeActive() {
+        Task { [weak self] in
+            await self?.apphudService?.refreshStatus()
+        }
+    }
+
+    private func clearLegacyLocalChatData() {
+        if let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let fileURL = applicationSupport
+                .appendingPathComponent("AmbientAI", isDirectory: true)
+                .appendingPathComponent("chat_history.json")
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+        UserDefaults.standard.dictionaryRepresentation().keys
+            .filter { $0.hasPrefix("deleted-dola-chats.") }
+            .forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 }
