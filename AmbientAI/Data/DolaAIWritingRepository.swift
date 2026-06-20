@@ -25,7 +25,7 @@ final class DolaAIWritingRepository: AIWritingRepository {
         let userID = userIDProvider()
         guard !userID.isEmpty else { throw DolaAPIError.missingUserID }
 
-        let endpoint = baseURL/*.appendingPathComponent("dola")*/.appendingPathComponent("ai-writing")
+        let endpoint = baseURL.appendingPathComponent("dola").appendingPathComponent("ai-writing")
         guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
             throw DolaAPIError.invalidURL
         }
