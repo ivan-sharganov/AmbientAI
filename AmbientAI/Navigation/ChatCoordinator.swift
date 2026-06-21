@@ -6,6 +6,7 @@ final class ChatCoordinator: Coordinator {
     private let aiWritingRepository: AIWritingRepository
     private let apphudService: ApphudServiceProtocol
     private let pixverseService: PixverseServiceProtocol
+    private let videoHistoryStore: VideoHistoryStore
     private var videoGenerationTask: Task<Void, Never>?
 
     init(
@@ -13,13 +14,15 @@ final class ChatCoordinator: Coordinator {
         repository: ChatRepository,
         aiWritingRepository: AIWritingRepository,
         apphudService: ApphudServiceProtocol,
-        pixverseService: PixverseServiceProtocol
+        pixverseService: PixverseServiceProtocol,
+        videoHistoryStore: VideoHistoryStore
     ) {
         self.navigationController = navigationController
         self.repository = repository
         self.aiWritingRepository = aiWritingRepository
         self.apphudService = apphudService
         self.pixverseService = pixverseService
+        self.videoHistoryStore = videoHistoryStore
     }
 
     func start() {
@@ -107,8 +110,19 @@ final class ChatCoordinator: Coordinator {
     }
 
     private func showVideoHistory() {
-        let controller = VideoHistoryViewController()
+        let controller = VideoHistoryViewController(store: videoHistoryStore)
         controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
+        controller.onSelectVideo = { [weak self] videoURL in
+            self?.showHistoricalVideo(videoURL: videoURL)
+        }
+        navigationController.pushViewController(controller, animated: true)
+    }
+
+    private func showHistoricalVideo(videoURL: URL) {
+        let controller = VideoResultViewController(videoURL: videoURL, showsReplaceButton: false)
+        controller.onClose = { [weak self] in
+            self?.navigationController.popViewController(animated: true)
+        }
         navigationController.pushViewController(controller, animated: true)
     }
 
@@ -140,11 +154,24 @@ final class ChatCoordinator: Coordinator {
             guard let self else { return }
             do {
                 let videoID = try await pixverseService.generateVideo(request: request)
-                let videoURL = try await pixverseService.waitForVideo(videoID: videoID)
+                let remoteVideoURL = try await pixverseService.waitForVideo(videoID: videoID)
+                let sourceURL = resolvedVideoURL(remoteVideoURL)
+                let resultURL: URL
+                do {
+                    let savedVideo = try await videoHistoryStore.save(
+                        videoAt: sourceURL,
+                        title: request.template.title,
+                        fallbackThumbnailData: request.imageData
+                    )
+                    resultURL = savedVideo.videoURL
+                } catch {
+                    print("[VideoHistory] Local save failed: \(error.localizedDescription)")
+                    resultURL = sourceURL
+                }
                 try Task.checkCancellation()
                 await MainActor.run {
                     guard let controller else { return }
-                    self.showVideoResult(videoURL: videoURL, request: request, after: controller)
+                    self.showVideoResult(videoURL: resultURL, request: request, after: controller)
                 }
             } catch is CancellationError {
                 return
@@ -155,6 +182,14 @@ final class ChatCoordinator: Coordinator {
                 }
             }
         }
+    }
+
+    private func resolvedVideoURL(_ videoURL: URL) -> URL {
+        if videoURL.host == "example.com",
+           let fallbackURL = Bundle.main.url(forResource: "fallback_video", withExtension: "mov") {
+            return fallbackURL
+        }
+        return videoURL
     }
 
     private func showVideoResult(

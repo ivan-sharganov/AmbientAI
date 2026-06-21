@@ -7,6 +7,7 @@ final class VideoResultViewController: UIViewController {
     var onReplace: (() -> Void)?
 
     private let videoURL: URL
+    private let showsReplaceButton: Bool
     private let videoView = LoopingVideoView()
     private let dimView = UIControl()
     private let toastView = GradientView(
@@ -27,8 +28,9 @@ final class VideoResultViewController: UIViewController {
         return videoURL
     }
 
-    init(videoURL: URL) {
+    init(videoURL: URL, showsReplaceButton: Bool = true) {
         self.videoURL = videoURL
+        self.showsReplaceButton = showsReplaceButton
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -102,6 +104,7 @@ final class VideoResultViewController: UIViewController {
         replaceButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
         replaceButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: -8)
         replaceButton.addTarget(self, action: #selector(replaceTapped), for: .touchUpInside)
+        replaceButton.isHidden = !showsReplaceButton
         replaceButton.translatesAutoresizingMaskIntoConstraints = false
         previewContainer.addSubview(replaceButton)
 

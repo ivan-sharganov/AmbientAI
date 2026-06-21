@@ -445,7 +445,7 @@ private final class VideoTemplateSkeletonCell: UICollectionViewCell {
             UIColor.white.withAlphaComponent(0.08).cgColor,
             UIColor.clear.cgColor
         ]
-        shimmer.locations = [0, 0.5, 1]
+        shimmer.locations = [-0.5, -0.25, 0]
         shimmer.startPoint = CGPoint(x: 0, y: 0.5)
         shimmer.endPoint = CGPoint(x: 1, y: 0.5)
         contentView.layer.addSublayer(shimmer)
@@ -458,7 +458,8 @@ private final class VideoTemplateSkeletonCell: UICollectionViewCell {
     override func layoutSubviews() {
         super.layoutSubviews()
         baseGradient.frame = contentView.bounds
-        shimmer.frame = contentView.bounds.insetBy(dx: -contentView.bounds.width, dy: 0)
+        shimmer.frame = contentView.bounds
+        if window != nil { startShimmer() }
     }
 
     override func didMoveToWindow() {
@@ -467,13 +468,21 @@ private final class VideoTemplateSkeletonCell: UICollectionViewCell {
     }
 
     private func startShimmer() {
-        guard shimmer.animation(forKey: "shimmer") == nil else { return }
-        let animation = CABasicAnimation(keyPath: "transform.translation.x")
-        animation.fromValue = -contentView.bounds.width
-        animation.toValue = contentView.bounds.width
-        animation.duration = 1.35
+        guard !contentView.bounds.isEmpty,
+              shimmer.animation(forKey: "shimmer") == nil else { return }
+
+        let duration: CFTimeInterval = 1.6
+        let animation = CABasicAnimation(keyPath: "locations")
+        animation.fromValue = [-0.5, -0.25, 0]
+        animation.toValue = [1, 1.25, 1.5]
+        animation.duration = duration
         animation.repeatCount = .infinity
-        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        animation.timingFunction = CAMediaTimingFunction(name: .linear)
+
+        // All reused cells share one phase, so the grid shimmers as a single surface.
+        let mediaTime = CACurrentMediaTime()
+        let localTime = shimmer.convertTime(mediaTime, from: nil)
+        animation.beginTime = localTime - mediaTime.truncatingRemainder(dividingBy: duration)
         shimmer.add(animation, forKey: "shimmer")
     }
 

@@ -51,12 +51,14 @@ final class AppCoordinator: Coordinator {
             bearerToken: Configuration.dolaBearerToken,
             userIDProvider: { apphudService.userID }
         )
+        let videoHistoryStore = VideoHistoryStore()
         let chatCoordinator = ChatCoordinator(
             navigationController: navigationController,
             repository: repository,
             aiWritingRepository: aiWritingRepository,
             apphudService: apphudService,
-            pixverseService: pixverseService
+            pixverseService: pixverseService,
+            videoHistoryStore: videoHistoryStore
         )
         self.chatCoordinator = chatCoordinator
         chatCoordinator.start()
