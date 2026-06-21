@@ -9,6 +9,7 @@ final class ChatViewController: UIViewController {
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let emptyStateStack = UIStackView(axis: .vertical, spacing: 8, alignment: .center)
     private let messagesLoadingIndicator = UIActivityIndicatorView(style: .medium)
+    private let inputBackgroundView = UIView()
     private let inputContainer = UIView()
     private let inputTextView = UITextView()
     private let placeholderLabel = UILabel()
@@ -183,17 +184,21 @@ final class ChatViewController: UIViewController {
         view.addSubview(emptyStateStack)
         NSLayoutConstraint.activate([
             emptyStateStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            emptyStateStack.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -90),
+            emptyStateStack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             emptyStateStack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
             emptyStateStack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20)
         ])
     }
 
     private func setupInputBar() {
-        inputContainer.backgroundColor = ChatStyle.input
-        inputContainer.layer.cornerRadius = 20
-        inputContainer.layer.cornerCurve = .continuous
-        inputContainer.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        inputBackgroundView.backgroundColor = ChatStyle.input
+        inputBackgroundView.layer.cornerRadius = 20
+        inputBackgroundView.layer.cornerCurve = .continuous
+        inputBackgroundView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        inputBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(inputBackgroundView)
+
+        inputContainer.backgroundColor = .clear
         inputContainer.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(inputContainer)
 
@@ -253,6 +258,11 @@ final class ChatViewController: UIViewController {
         textTrailingToSend.isActive = false
 
         NSLayoutConstraint.activate([
+            inputBackgroundView.topAnchor.constraint(equalTo: inputContainer.topAnchor),
+            inputBackgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            inputBackgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            inputBackgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
             inputContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             inputContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             inputBottomConstraint,

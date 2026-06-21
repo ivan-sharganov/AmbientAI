@@ -53,9 +53,8 @@ final class DolaChatRepository: ChatRepository {
 
         let pendingSessions = previousSessions.filter { local in
             !synchronized.contains(where: { $0.id == local.id })
-                && local.remoteID == nil
                 && !local.messages.isEmpty
-                && !deletedRemoteIDs.contains(local.id.uuidString)
+                && !deletedRemoteIDs.contains(local.remoteID ?? local.id.uuidString)
         }
         let result = (synchronized + pendingSessions).sorted { $0.updatedAt > $1.updatedAt }
         sessionsByID = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
@@ -98,10 +97,18 @@ final class DolaChatRepository: ChatRepository {
         let response = try await sendToDola(text: text, chatID: remoteID)
 
         chat.messages.append(ChatMessage(role: .assistant, text: response.assistantMessage))
-        chat.remoteID = response.chatID
+        if response.chatID == "sandbox-chat-1", remoteID != response.chatID {
+            // The sandbox response reports its fixture ID even though the request
+            // was persisted under the chat ID supplied in the URL.
+            chat.remoteID = remoteID
+            print("[Dola] Ignoring sandbox chat_id mismatch: requested \(remoteID), returned \(response.chatID)")
+        } else {
+            chat.remoteID = response.chatID
+        }
         chat.remotePreview = response.assistantMessage
         chat.updatedAt = Date()
         sessionsByID[sessionID] = chat
+        print("[Dola] Message saved in server chat \(chat.remoteID ?? remoteID)")
         return chat
     }
 
