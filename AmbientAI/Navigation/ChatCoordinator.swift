@@ -120,22 +120,22 @@ final class ChatCoordinator: Coordinator {
     }
 
     private func showVideoGenerationLoading(
-        request: VideoGenerationRequest,
-        replacing replacedController: UIViewController? = nil
+        request: VideoGenerationRequest
     ) {
-        videoGenerationTask?.cancel()
         let controller = VideoGenerationLoadingViewController()
         controller.onClose = { [weak self] in
             self?.videoGenerationTask?.cancel()
             self?.navigationController.popViewController(animated: true)
         }
+        navigationController.pushViewController(controller, animated: true)
+        startVideoGeneration(request: request, on: controller)
+    }
 
-        if let replacedController {
-            replace(replacedController, with: controller)
-        } else {
-            navigationController.pushViewController(controller, animated: true)
-        }
-
+    private func startVideoGeneration(
+        request: VideoGenerationRequest,
+        on controller: VideoGenerationLoadingViewController
+    ) {
+        videoGenerationTask?.cancel()
         videoGenerationTask = Task { [weak self, weak controller] in
             guard let self else { return }
             do {
@@ -144,7 +144,7 @@ final class ChatCoordinator: Coordinator {
                 try Task.checkCancellation()
                 await MainActor.run {
                     guard let controller else { return }
-                    self.showVideoResult(videoURL: videoURL, request: request, replacing: controller)
+                    self.showVideoResult(videoURL: videoURL, request: request, after: controller)
                 }
             } catch is CancellationError {
                 return
@@ -160,25 +160,23 @@ final class ChatCoordinator: Coordinator {
     private func showVideoResult(
         videoURL: URL,
         request: VideoGenerationRequest,
-        replacing loadingController: VideoGenerationLoadingViewController
+        after loadingController: VideoGenerationLoadingViewController
     ) {
+        guard navigationController.topViewController === loadingController else { return }
         let controller = VideoResultViewController(videoURL: videoURL)
-        controller.onClose = { [weak self] in self?.navigationController.popViewController(animated: true) }
-        controller.onReplace = { [weak self, weak controller] in
-            guard let controller else { return }
-            self?.showVideoGenerationLoading(request: request, replacing: controller)
+        controller.onClose = { [weak self, weak loadingController] in
+            guard let self, let loadingController,
+                  let loadingIndex = self.navigationController.viewControllers.firstIndex(where: { $0 === loadingController }),
+                  loadingIndex > 0 else { return }
+            let destination = self.navigationController.viewControllers[loadingIndex - 1]
+            self.navigationController.popToViewController(destination, animated: true)
         }
-        replace(loadingController, with: controller)
-    }
-
-    private func replace(_ oldController: UIViewController, with newController: UIViewController) {
-        var stack = navigationController.viewControllers
-        if let index = stack.firstIndex(where: { $0 === oldController }) {
-            stack[index] = newController
-            navigationController.setViewControllers(stack, animated: true)
-        } else {
-            navigationController.pushViewController(newController, animated: true)
+        controller.onReplace = { [weak self, weak loadingController] in
+            guard let self, let loadingController else { return }
+            self.navigationController.popToViewController(loadingController, animated: true)
+            self.startVideoGeneration(request: request, on: loadingController)
         }
+        navigationController.pushViewController(controller, animated: true)
     }
 
     private func showVideoGenerationError(_ error: Error, from loadingController: UIViewController) {
