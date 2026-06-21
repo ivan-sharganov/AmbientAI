@@ -58,7 +58,7 @@ final class HomeViewController: UIViewController {
         settingsButton.setImage(UIImage(named: "HomeSettingsIcon"), for: .normal)
         settingsButton.imageView?.contentMode = .scaleAspectFit
         settingsButton.imageView?.alpha = 0.3
-        settingsButton.addTarget(self, action: #selector(openHistory), for: .touchUpInside)
+        settingsButton.isUserInteractionEnabled = false
         settingsButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(settingsButton)
         NSLayoutConstraint.activate([

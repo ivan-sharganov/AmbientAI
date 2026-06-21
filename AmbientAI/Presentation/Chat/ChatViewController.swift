@@ -8,12 +8,17 @@ final class ChatViewController: UIViewController {
     private let headerView = UIView()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let emptyStateStack = UIStackView(axis: .vertical, spacing: 8, alignment: .center)
-    private let messagesLoadingIndicator = UIActivityIndicatorView(style: .large)
+    private let messagesLoadingIndicator = UIActivityIndicatorView(style: .medium)
     private let inputContainer = UIView()
     private let inputTextView = UITextView()
-    private let sendButton = IconButton(systemName: "paperplane.fill", pointSize: 15)
+    private let placeholderLabel = UILabel()
+    private let sendButton = UIButton(type: .custom)
+    private let utilityButtons = UIStackView(axis: .horizontal, spacing: 8)
     private var inputBottomConstraint: NSLayoutConstraint!
     private var inputHeightConstraint: NSLayoutConstraint!
+    private var textTrailingToSend: NSLayoutConstraint!
+    private var textTrailingToUtilities: NSLayoutConstraint!
+    private var displayedSendButtonState: Bool?
 
     init(viewModel: ChatViewModel) {
         self.viewModel = viewModel
@@ -32,11 +37,6 @@ final class ChatViewController: UIViewController {
         viewModel.viewDidLoad()
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        inputTextView.becomeFirstResponder()
-    }
-
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
@@ -48,12 +48,7 @@ final class ChatViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.backgroundColor = DesignSystem.Color.background
-
-        let background = GradientView(colors: [UIColor(red: 0.08, green: 0.05, blue: 0.10, alpha: 1), DesignSystem.Color.background], startPoint: CGPoint(x: 0.5, y: 0), endPoint: CGPoint(x: 0.5, y: 1))
-        view.addSubview(background)
-        background.pinToSuperviewEdges()
-
+        view.backgroundColor = ChatStyle.background
         setupHeader()
         setupInputBar()
         setupTableView()
@@ -62,80 +57,91 @@ final class ChatViewController: UIViewController {
     }
 
     private func setupHeader() {
+        headerView.backgroundColor = ChatStyle.header
         headerView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(headerView)
 
-        let backButton = UIButton(type: .system)
-        backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        backButton.tintColor = .white
+        let backButton = UIButton(type: .custom)
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
         backButton.translatesAutoresizingMaskIntoConstraints = false
         headerView.addSubview(backButton)
 
-        let avatar = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink])
+        let backIcon = UIImageView(image: UIImage(named: "VideoBackVector"))
+        backIcon.contentMode = .scaleAspectFit
+        backIcon.transform = CGAffineTransform(scaleX: -1, y: 1)
+        backIcon.translatesAutoresizingMaskIntoConstraints = false
+        backButton.addSubview(backIcon)
+
+        let avatar = GradientView(
+            colors: [ChatStyle.blue, ChatStyle.pink],
+            startPoint: CGPoint(x: 0, y: 0.5),
+            endPoint: CGPoint(x: 1, y: 0.5)
+        )
         avatar.layer.cornerRadius = 16
+        avatar.layer.cornerCurve = .continuous
         avatar.layer.masksToBounds = true
         avatar.translatesAutoresizingMaskIntoConstraints = false
         headerView.addSubview(avatar)
 
-        let sparkle = UIImageView(image: UIImage(systemName: "sparkles"))
-        sparkle.tintColor = .white
-        sparkle.translatesAutoresizingMaskIntoConstraints = false
-        avatar.addSubview(sparkle)
-        NSLayoutConstraint.activate([
-            sparkle.centerXAnchor.constraint(equalTo: avatar.centerXAnchor),
-            sparkle.centerYAnchor.constraint(equalTo: avatar.centerYAnchor),
-            sparkle.widthAnchor.constraint(equalToConstant: 15),
-            sparkle.heightAnchor.constraint(equalToConstant: 15)
-        ])
+        let avatarIcon = UIImageView(image: UIImage(named: "HomePromptIcon"))
+        avatarIcon.contentMode = .scaleAspectFit
+        avatarIcon.translatesAutoresizingMaskIntoConstraints = false
+        avatar.addSubview(avatarIcon)
 
         let titleLabel = UILabel()
         titleLabel.text = "AI Chat"
         titleLabel.textColor = .white
-        titleLabel.font = DesignSystem.Font.navTitle
+        titleLabel.font = ChatStyle.font(size: 16, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         headerView.addSubview(titleLabel)
 
         let dateLabel = UILabel()
         dateLabel.text = DateFormatting.shortDateFormatter.string(from: Date())
-        dateLabel.textColor = DesignSystem.Color.secondaryText
-        dateLabel.font = UIFont.systemFont(ofSize: 10, weight: .regular)
+        dateLabel.textColor = ChatStyle.dimText
+        dateLabel.font = ChatStyle.font(size: 11, weight: .regular)
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
         headerView.addSubview(dateLabel)
 
-        let historyButton = UIButton(type: .system)
-        historyButton.setImage(UIImage(systemName: "clock.arrow.circlepath"), for: .normal)
-        historyButton.tintColor = .white
+        let historyButton = UIButton(type: .custom)
+        historyButton.setImage(UIImage(named: "VideoHistoryIcon"), for: .normal)
+        historyButton.imageView?.contentMode = .scaleAspectFit
         historyButton.addTarget(self, action: #selector(historyTapped), for: .touchUpInside)
         historyButton.translatesAutoresizingMaskIntoConstraints = false
         headerView.addSubview(historyButton)
 
         NSLayoutConstraint.activate([
-            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            headerView.topAnchor.constraint(equalTo: view.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            headerView.heightAnchor.constraint(equalToConstant: 60),
+            headerView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 64),
 
             backButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 12),
-            backButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            backButton.widthAnchor.constraint(equalToConstant: 36),
-            backButton.heightAnchor.constraint(equalToConstant: 36),
+            backButton.bottomAnchor.constraint(equalTo: headerView.bottomAnchor, constant: -10),
+            backButton.widthAnchor.constraint(equalToConstant: 40),
+            backButton.heightAnchor.constraint(equalToConstant: 40),
+            backIcon.centerXAnchor.constraint(equalTo: backButton.centerXAnchor),
+            backIcon.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            backIcon.widthAnchor.constraint(equalToConstant: 9),
+            backIcon.heightAnchor.constraint(equalToConstant: 18),
 
-            avatar.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 10),
-            avatar.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            avatar.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 8),
+            avatar.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
             avatar.widthAnchor.constraint(equalToConstant: 32),
             avatar.heightAnchor.constraint(equalToConstant: 32),
+            avatarIcon.centerXAnchor.constraint(equalTo: avatar.centerXAnchor),
+            avatarIcon.centerYAnchor.constraint(equalTo: avatar.centerYAnchor),
+            avatarIcon.widthAnchor.constraint(equalToConstant: 20),
+            avatarIcon.heightAnchor.constraint(equalToConstant: 20),
 
             titleLabel.leadingAnchor.constraint(equalTo: avatar.trailingAnchor, constant: 10),
-            titleLabel.topAnchor.constraint(equalTo: avatar.topAnchor, constant: -1),
-
+            titleLabel.topAnchor.constraint(equalTo: avatar.topAnchor),
             dateLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            dateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 1),
+            dateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor),
 
             historyButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
-            historyButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            historyButton.widthAnchor.constraint(equalToConstant: 36),
-            historyButton.heightAnchor.constraint(equalToConstant: 36)
+            historyButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            historyButton.widthAnchor.constraint(equalToConstant: 40),
+            historyButton.heightAnchor.constraint(equalToConstant: 40)
         ])
     }
 
@@ -143,6 +149,7 @@ final class ChatViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.separatorStyle = .none
         tableView.keyboardDismissMode = .interactive
+        tableView.contentInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
         tableView.dataSource = self
         tableView.delegate = self
         tableView.register(MessageCell.self, forCellReuseIdentifier: MessageCell.reuseIdentifier)
@@ -158,98 +165,136 @@ final class ChatViewController: UIViewController {
     }
 
     private func setupEmptyState() {
-        let icon = UIImageView(image: UIImage(systemName: "sparkles"))
-        icon.tintColor = DesignSystem.Color.pink
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 42),
-            icon.heightAnchor.constraint(equalToConstant: 42)
-        ])
-
         let title = UILabel()
         title.text = "Your AI assistant for anything"
         title.textColor = .white
-        title.font = DesignSystem.Font.bodySemibold
+        title.font = ChatStyle.font(size: 16, weight: .semibold)
         title.textAlignment = .center
 
         let subtitle = UILabel()
         subtitle.text = "Ask questions, get answers, and explore ideas\nin seconds"
-        subtitle.textColor = DesignSystem.Color.secondaryText
-        subtitle.font = DesignSystem.Font.caption
+        subtitle.textColor = ChatStyle.secondaryText
+        subtitle.font = ChatStyle.font(size: 13, weight: .regular)
         subtitle.textAlignment = .center
         subtitle.numberOfLines = 2
 
-        emptyStateStack.addArrangedSubview(icon)
         emptyStateStack.addArrangedSubview(title)
         emptyStateStack.addArrangedSubview(subtitle)
         view.addSubview(emptyStateStack)
         NSLayoutConstraint.activate([
             emptyStateStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            emptyStateStack.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -72),
+            emptyStateStack.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -90),
             emptyStateStack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
             emptyStateStack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20)
         ])
     }
 
     private func setupInputBar() {
-        inputContainer.backgroundColor = DesignSystem.Color.backgroundElevated
-        inputContainer.layer.cornerRadius = 22
+        inputContainer.backgroundColor = ChatStyle.input
+        inputContainer.layer.cornerRadius = 20
+        inputContainer.layer.cornerCurve = .continuous
+        inputContainer.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         inputContainer.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(inputContainer)
 
         inputTextView.backgroundColor = .clear
         inputTextView.textColor = .white
-        inputTextView.tintColor = DesignSystem.Color.pink
-        inputTextView.font = DesignSystem.Font.body
-        inputTextView.textContainerInset = UIEdgeInsets(top: 11, left: 8, bottom: 9, right: 8)
+        inputTextView.tintColor = ChatStyle.pink
+        inputTextView.font = ChatStyle.font(size: 15, weight: .regular)
+        inputTextView.textContainerInset = UIEdgeInsets(top: 12, left: 0, bottom: 10, right: 0)
+        inputTextView.textContainer.lineFragmentPadding = 0
         inputTextView.delegate = self
         inputTextView.isScrollEnabled = false
         inputTextView.translatesAutoresizingMaskIntoConstraints = false
         inputContainer.addSubview(inputTextView)
 
-        let placeholder = UILabel()
-        placeholder.text = "How can I help you?"
-        placeholder.textColor = DesignSystem.Color.mutedText
-        placeholder.font = DesignSystem.Font.body
-        placeholder.tag = 99
-        placeholder.translatesAutoresizingMaskIntoConstraints = false
-        inputTextView.addSubview(placeholder)
+        placeholderLabel.text = "Ask anything..."
+        placeholderLabel.textColor = ChatStyle.placeholder
+        placeholderLabel.font = ChatStyle.font(size: 15, weight: .regular)
+        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+        inputContainer.addSubview(placeholderLabel)
 
-        sendButton.alpha = 0
-        sendButton.transform = CGAffineTransform(scaleX: 0.75, y: 0.75)
+        configureCircleButton(sendButton, systemName: "paperplane.fill")
+        sendButton.layer.borderWidth = 0
+        let sendGradient = GradientView(
+            colors: [ChatStyle.blue, ChatStyle.pink],
+            startPoint: CGPoint(x: 0, y: 0.5),
+            endPoint: CGPoint(x: 1, y: 0.5)
+        )
+        sendGradient.isUserInteractionEnabled = false
+        sendButton.insertSubview(sendGradient, at: 0)
+        sendGradient.pinToSuperviewEdges()
+        if let imageView = sendButton.imageView {
+            sendButton.bringSubviewToFront(imageView)
+        }
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
+        sendButton.translatesAutoresizingMaskIntoConstraints = false
         inputContainer.addSubview(sendButton)
 
-        let micButton = IconButton(systemName: "mic", pointSize: 14)
-        inputContainer.addSubview(micButton)
+        let dismissButton = UIButton(type: .custom)
+        configureCircleButton(dismissButton, systemName: "arrow.down.to.line.compact")
+        dismissButton.addTarget(self, action: #selector(dismissKeyboardTapped), for: .touchUpInside)
 
-        inputBottomConstraint = inputContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -10)
-        inputHeightConstraint = inputContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 52)
+        let micButton = UIButton(type: .custom)
+        configureCircleButton(micButton, systemName: "mic")
+
+        utilityButtons.addArrangedSubview(dismissButton)
+        utilityButtons.addArrangedSubview(micButton)
+        utilityButtons.translatesAutoresizingMaskIntoConstraints = false
+        inputContainer.addSubview(utilityButtons)
+
+        inputBottomConstraint = inputContainer.bottomAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+            constant: -8
+        )
+        inputHeightConstraint = inputContainer.heightAnchor.constraint(equalToConstant: 68)
+        textTrailingToSend = inputTextView.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -12)
+        textTrailingToUtilities = inputTextView.trailingAnchor.constraint(equalTo: utilityButtons.leadingAnchor, constant: -12)
+        textTrailingToSend.isActive = false
 
         NSLayoutConstraint.activate([
-            inputContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            inputContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            inputContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            inputContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             inputBottomConstraint,
             inputHeightConstraint,
 
-            inputTextView.topAnchor.constraint(equalTo: inputContainer.topAnchor, constant: 4),
-            inputTextView.leadingAnchor.constraint(equalTo: inputContainer.leadingAnchor, constant: 8),
-            inputTextView.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -8),
-            inputTextView.bottomAnchor.constraint(equalTo: inputContainer.bottomAnchor, constant: -4),
+            inputTextView.topAnchor.constraint(equalTo: inputContainer.topAnchor, constant: 10),
+            inputTextView.leadingAnchor.constraint(equalTo: inputContainer.leadingAnchor, constant: 16),
+            inputTextView.bottomAnchor.constraint(equalTo: inputContainer.bottomAnchor, constant: -10),
+            textTrailingToUtilities,
 
-            placeholder.leadingAnchor.constraint(equalTo: inputTextView.leadingAnchor, constant: 12),
-            placeholder.topAnchor.constraint(equalTo: inputTextView.topAnchor, constant: 12),
+            placeholderLabel.leadingAnchor.constraint(equalTo: inputTextView.leadingAnchor),
+            placeholderLabel.topAnchor.constraint(equalTo: inputTextView.topAnchor, constant: 12),
 
-            micButton.trailingAnchor.constraint(equalTo: inputContainer.trailingAnchor, constant: -10),
-            micButton.bottomAnchor.constraint(equalTo: inputContainer.bottomAnchor, constant: -8),
+            sendButton.trailingAnchor.constraint(equalTo: inputContainer.trailingAnchor, constant: -16),
+            sendButton.centerYAnchor.constraint(equalTo: inputContainer.centerYAnchor),
+            sendButton.widthAnchor.constraint(equalToConstant: 40),
+            sendButton.heightAnchor.constraint(equalToConstant: 40),
 
-            sendButton.trailingAnchor.constraint(equalTo: micButton.leadingAnchor, constant: -8),
-            sendButton.bottomAnchor.constraint(equalTo: inputContainer.bottomAnchor, constant: -8)
+            utilityButtons.trailingAnchor.constraint(equalTo: inputContainer.trailingAnchor, constant: -16),
+            utilityButtons.centerYAnchor.constraint(equalTo: inputContainer.centerYAnchor),
+            dismissButton.widthAnchor.constraint(equalToConstant: 40),
+            dismissButton.heightAnchor.constraint(equalToConstant: 40),
+            micButton.widthAnchor.constraint(equalToConstant: 40),
+            micButton.heightAnchor.constraint(equalToConstant: 40)
         ])
+        updateSendButton(animated: false)
+    }
+
+    private func configureCircleButton(_ button: UIButton, systemName: String) {
+        button.backgroundColor = UIColor.white.withAlphaComponent(0.015)
+        button.layer.cornerRadius = 20
+        button.layer.cornerCurve = .continuous
+        button.layer.borderWidth = 1
+        button.layer.borderColor = ChatStyle.buttonBorder.cgColor
+        button.clipsToBounds = true
+        let configuration = UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+        button.setImage(UIImage(systemName: systemName, withConfiguration: configuration), for: .normal)
+        button.tintColor = .white
     }
 
     private func setupMessagesLoadingIndicator() {
-        messagesLoadingIndicator.color = DesignSystem.Color.lavender
+        messagesLoadingIndicator.color = ChatStyle.blue
         messagesLoadingIndicator.hidesWhenStopped = true
         messagesLoadingIndicator.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(messagesLoadingIndicator)
@@ -269,6 +314,7 @@ final class ChatViewController: UIViewController {
             messagesLoadingIndicator.startAnimating()
             inputContainer.isUserInteractionEnabled = false
             inputContainer.alpha = 0.55
+
         case let .loaded(messages, isLoadingResponse):
             messagesLoadingIndicator.stopAnimating()
             inputContainer.isUserInteractionEnabled = true
@@ -276,8 +322,10 @@ final class ChatViewController: UIViewController {
             self.messages = messages
             self.isLoadingResponse = isLoadingResponse
             emptyStateStack.isHidden = !messages.isEmpty || isLoadingResponse
+            placeholderLabel.text = messages.isEmpty ? "Ask anything..." : "How can I help you?"
             tableView.reloadData()
             scrollToBottom()
+
         case let .error(message):
             messagesLoadingIndicator.stopAnimating()
             inputContainer.isUserInteractionEnabled = true
@@ -288,7 +336,10 @@ final class ChatViewController: UIViewController {
 
     private func scrollToBottom(animated: Bool = true) {
         tableView.layoutIfNeeded()
-        let bottomOffsetY = max(-tableView.adjustedContentInset.top, tableView.contentSize.height - tableView.bounds.height + tableView.adjustedContentInset.bottom)
+        let bottomOffsetY = max(
+            -tableView.adjustedContentInset.top,
+            tableView.contentSize.height - tableView.bounds.height + tableView.adjustedContentInset.bottom
+        )
         tableView.setContentOffset(CGPoint(x: 0, y: bottomOffsetY), animated: animated)
     }
 
@@ -298,48 +349,90 @@ final class ChatViewController: UIViewController {
         present(alert, animated: true)
     }
 
-    private func updateSendButton() {
+    private func updateSendButton(animated: Bool = true) {
         let hasText = !inputTextView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        inputTextView.viewWithTag(99)?.isHidden = hasText
-        UIView.animate(withDuration: 0.18) {
-            self.sendButton.alpha = hasText ? 1 : 0
-            self.sendButton.transform = hasText ? .identity : CGAffineTransform(scaleX: 0.75, y: 0.75)
+        placeholderLabel.isHidden = hasText
+        guard displayedSendButtonState != hasText else { return }
+        displayedSendButtonState = hasText
+
+        textTrailingToUtilities.isActive = !hasText
+        textTrailingToSend.isActive = hasText
+        utilityButtons.isHidden = hasText
+
+        guard animated else {
+            sendButton.isHidden = !hasText
+            sendButton.alpha = hasText ? 1 : 0
+            sendButton.transform = hasText ? .identity : CGAffineTransform(scaleX: 0.8, y: 0.8)
+            return
         }
+        if hasText {
+            sendButton.alpha = 0
+            sendButton.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+            sendButton.isHidden = false
+        }
+        UIView.animate(withDuration: 0.18, animations: {
+            self.sendButton.alpha = hasText ? 1 : 0
+            self.sendButton.transform = hasText ? .identity : CGAffineTransform(scaleX: 0.8, y: 0.8)
+            self.view.layoutIfNeeded()
+        }, completion: { _ in
+            self.sendButton.isHidden = !hasText
+        })
     }
 
     private func registerKeyboardNotifications() {
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChangeFrame(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
     }
 
     @objc private func keyboardWillChangeFrame(_ notification: Notification) {
         guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
         let converted = view.convert(frame, from: nil)
         let overlap = max(0, view.bounds.maxY - converted.minY - view.safeAreaInsets.bottom)
-        inputBottomConstraint.constant = -overlap - 10
-        let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
-        let optionsRaw = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 0
-        let options = UIView.AnimationOptions(rawValue: optionsRaw << 16)
-
-        UIView.animate(withDuration: duration, delay: 0, options: options) {
-            self.view.layoutIfNeeded()
-        } completion: { _ in
-            guard !self.messages.isEmpty || self.isLoadingResponse else { return }
-            self.scrollToBottom(animated: true)
+        inputBottomConstraint.constant = -overlap
+        animateKeyboard(notification) { [weak self] in
+            guard let self, !messages.isEmpty || isLoadingResponse else { return }
+            scrollToBottom(animated: true)
         }
     }
 
     @objc private func keyboardWillHide(_ notification: Notification) {
-        inputBottomConstraint.constant = -10
+        inputBottomConstraint.constant = -8
+        animateKeyboard(notification)
+    }
+
+    private func animateKeyboard(_ notification: Notification, completion: (() -> Void)? = nil) {
         let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
-        UIView.animate(withDuration: duration) { self.view.layoutIfNeeded() }
+        let rawCurve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 0
+        UIView.animate(
+            withDuration: duration,
+            delay: 0,
+            options: UIView.AnimationOptions(rawValue: rawCurve << 16),
+            animations: { self.view.layoutIfNeeded() },
+            completion: { _ in completion?() }
+        )
     }
 
     @objc private func sendTapped() {
         let text = inputTextView.text ?? ""
         inputTextView.text = ""
+        inputTextView.isScrollEnabled = false
+        inputHeightConstraint.constant = 68
         updateSendButton()
         viewModel.send(text)
+    }
+
+    @objc private func dismissKeyboardTapped() {
+        view.endEditing(true)
     }
 
     @objc private func historyTapped() {
@@ -362,6 +455,7 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             cell.backgroundColor = .clear
             cell.selectionStyle = .none
             let dots = LoadingDotsView()
+            dots.translatesAutoresizingMaskIntoConstraints = false
             cell.contentView.addSubview(dots)
             NSLayoutConstraint.activate([
                 dots.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 8),
@@ -372,7 +466,10 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             return cell
         }
 
-        let cell = tableView.dequeueReusableCell(withIdentifier: MessageCell.reuseIdentifier, for: indexPath) as! MessageCell
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: MessageCell.reuseIdentifier,
+            for: indexPath
+        ) as! MessageCell
         cell.configure(with: messages[indexPath.row])
         return cell
     }
@@ -381,9 +478,37 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
 extension ChatViewController: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         updateSendButton()
-        let size = CGSize(width: textView.bounds.width, height: .greatestFiniteMagnitude)
-        let height = min(118, max(52, textView.sizeThatFits(size).height + 8))
-        inputHeightConstraint.constant = height
+        let fittingWidth = max(1, textView.bounds.width)
+        let fittingSize = CGSize(width: fittingWidth, height: .greatestFiniteMagnitude)
+        let requiredHeight = textView.sizeThatFits(fittingSize).height + 20
+        let maximumHeight: CGFloat = 132
+        inputHeightConstraint.constant = min(maximumHeight, max(68, requiredHeight))
+        textView.isScrollEnabled = requiredHeight > maximumHeight
+        if textView.isScrollEnabled {
+            textView.scrollRangeToVisible(NSRange(location: textView.text.utf16.count, length: 0))
+        }
         view.layoutIfNeeded()
+    }
+}
+
+private enum ChatStyle {
+    static let background = UIColor(red: 11 / 255, green: 7 / 255, blue: 14 / 255, alpha: 1)
+    static let header = UIColor(red: 18 / 255, green: 13 / 255, blue: 20 / 255, alpha: 1)
+    static let input = UIColor(red: 28 / 255, green: 21 / 255, blue: 29 / 255, alpha: 1)
+    static let secondaryText = UIColor(red: 115 / 255, green: 108 / 255, blue: 117 / 255, alpha: 1)
+    static let dimText = UIColor(red: 65 / 255, green: 59 / 255, blue: 68 / 255, alpha: 1)
+    static let placeholder = UIColor(red: 92 / 255, green: 84 / 255, blue: 94 / 255, alpha: 1)
+    static let buttonBorder = UIColor(red: 61 / 255, green: 51 / 255, blue: 63 / 255, alpha: 1)
+    static let blue = UIColor(red: 152 / 255, green: 198 / 255, blue: 247 / 255, alpha: 1)
+    static let pink = UIColor(red: 235 / 255, green: 91 / 255, blue: 146 / 255, alpha: 1)
+
+    static func font(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let name: String
+        switch weight {
+        case .semibold: name = "Inter-SemiBold"
+        case .medium: name = "Inter-Medium"
+        default: name = "Inter-Regular"
+        }
+        return UIFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
     }
 }
