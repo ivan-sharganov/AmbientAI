@@ -16,62 +16,103 @@ final class VideoGenerationLoadingViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.backgroundColor = DesignSystem.Color.background
-        let background = GradientView(colors: [UIColor(red: 0.05, green: 0.03, blue: 0.07, alpha: 1), DesignSystem.Color.background], startPoint: CGPoint(x: 0.5, y: 0), endPoint: CGPoint(x: 0.5, y: 1))
-        view.addSubview(background)
-        background.pinToSuperviewEdges()
+        view.backgroundColor = VideoGenerationLoadingStyle.background
 
-        let backButton = IconButton(systemName: "chevron.left", pointSize: 18)
+        let header = UIView()
+        header.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(header)
+
+        let backButton = UIButton(type: .custom)
         backButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-        view.addSubview(backButton)
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        let backIcon = UIImageView(image: UIImage(named: "VideoBackVector"))
+        backIcon.contentMode = .scaleAspectFit
+        backIcon.transform = CGAffineTransform(scaleX: -1, y: 1)
+        backIcon.translatesAutoresizingMaskIntoConstraints = false
+        backButton.addSubview(backIcon)
+        header.addSubview(backButton)
+
+        let contentContainer = UIView()
+        contentContainer.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(contentContainer)
 
         let artContainer = UIView()
         artContainer.backgroundColor = .clear
         artContainer.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(artContainer)
+        contentContainer.addSubview(artContainer)
 
         orbView.translatesAutoresizingMaskIntoConstraints = false
         artContainer.addSubview(orbView)
 
         let title = UILabel()
-        title.text = "Generating..."
+        title.text = "Generating…"
         title.textColor = .white
-        title.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+        title.font = VideoGenerationLoadingStyle.font(size: 20, weight: .semibold)
         title.textAlignment = .center
 
         let subtitle = UILabel()
         subtitle.text = "We’re creating the best result for you"
-        subtitle.textColor = DesignSystem.Color.secondaryText
-        subtitle.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        subtitle.textColor = UIColor(red: 96 / 255, green: 96 / 255, blue: 96 / 255, alpha: 1)
+        subtitle.font = VideoGenerationLoadingStyle.font(size: 16, weight: .regular)
         subtitle.textAlignment = .center
 
-        let textStack = UIStackView(axis: .vertical, spacing: 10, alignment: .center)
+        let textStack = UIStackView(axis: .vertical, spacing: 8, alignment: .center)
         textStack.addArrangedSubview(title)
         textStack.addArrangedSubview(subtitle)
-        view.addSubview(textStack)
+        contentContainer.addSubview(textStack)
 
         NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            header.heightAnchor.constraint(equalToConstant: 44),
+
+            backButton.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 16),
+            backButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            backButton.widthAnchor.constraint(equalToConstant: 24),
+            backButton.heightAnchor.constraint(equalToConstant: 24),
+            backIcon.centerXAnchor.constraint(equalTo: backButton.centerXAnchor),
+            backIcon.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            backIcon.widthAnchor.constraint(equalToConstant: 9),
+            backIcon.heightAnchor.constraint(equalToConstant: 18),
+
+            contentContainer.topAnchor.constraint(equalTo: header.bottomAnchor),
+            contentContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            contentContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            contentContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
             artContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            artContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -76),
-            artContainer.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.72),
-            artContainer.heightAnchor.constraint(equalTo: artContainer.widthAnchor),
+            artContainer.centerYAnchor.constraint(equalTo: contentContainer.centerYAnchor, constant: -45.5),
+            artContainer.widthAnchor.constraint(equalToConstant: 316),
+            artContainer.heightAnchor.constraint(equalToConstant: 444),
 
             orbView.centerXAnchor.constraint(equalTo: artContainer.centerXAnchor),
             orbView.centerYAnchor.constraint(equalTo: artContainer.centerYAnchor),
-            orbView.widthAnchor.constraint(equalTo: artContainer.widthAnchor, multiplier: 0.74),
+            orbView.widthAnchor.constraint(equalToConstant: 300),
             orbView.heightAnchor.constraint(equalTo: orbView.widthAnchor),
 
-            textStack.topAnchor.constraint(equalTo: artContainer.bottomAnchor, constant: 42),
-            textStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
-            textStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28)
+            textStack.topAnchor.constraint(equalTo: artContainer.bottomAnchor, constant: 40),
+            textStack.centerXAnchor.constraint(equalTo: contentContainer.centerXAnchor),
+            textStack.widthAnchor.constraint(equalToConstant: 344)
         ])
     }
 
     @objc private func closeTapped() {
         onClose?()
+    }
+}
+
+private enum VideoGenerationLoadingStyle {
+    static let background = UIColor(red: 11 / 255, green: 7 / 255, blue: 14 / 255, alpha: 1)
+
+    static func font(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let name: String
+        switch weight {
+        case .semibold: name = "Inter-SemiBold"
+        case .medium: name = "Inter-Medium"
+        default: name = "Inter-Regular"
+        }
+        return UIFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
     }
 }
 

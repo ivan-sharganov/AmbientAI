@@ -9,7 +9,14 @@ final class VideoResultViewController: UIViewController {
     private let videoURL: URL
     private let videoView = LoopingVideoView()
     private let dimView = UIControl()
-    private let toastView = UIView()
+    private let toastView = GradientView(
+        colors: [
+            UIColor(red: 45 / 255, green: 36 / 255, blue: 43 / 255, alpha: 1),
+            UIColor(red: 31 / 255, green: 25 / 255, blue: 31 / 255, alpha: 1)
+        ],
+        startPoint: CGPoint(x: 0, y: 0),
+        endPoint: CGPoint(x: 1, y: 1)
+    )
     private let downloadButton = UIButton(type: .system)
 
     private var playbackURL: URL {
@@ -47,30 +54,34 @@ final class VideoResultViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.backgroundColor = DesignSystem.Color.background
-        let background = GradientView(colors: [UIColor(red: 0.05, green: 0.03, blue: 0.07, alpha: 1), DesignSystem.Color.background], startPoint: CGPoint(x: 0.5, y: 0), endPoint: CGPoint(x: 0.5, y: 1))
-        view.addSubview(background)
-        background.pinToSuperviewEdges()
+        view.backgroundColor = VideoResultStyle.background
 
-        let backButton = UIButton(type: .system)
-        let backConfig = UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)
-        backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: backConfig), for: .normal)
-        backButton.tintColor = .white
+        let header = UIView()
+        header.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(header)
+
+        let backButton = UIButton(type: .custom)
         backButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         backButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(backButton)
+        let backIcon = UIImageView(image: UIImage(named: "VideoBackVector"))
+        backIcon.contentMode = .scaleAspectFit
+        backIcon.transform = CGAffineTransform(scaleX: -1, y: 1)
+        backIcon.translatesAutoresizingMaskIntoConstraints = false
+        backButton.addSubview(backIcon)
+        header.addSubview(backButton)
 
         let titleLabel = UILabel()
         titleLabel.text = "Result"
         titleLabel.textColor = .white
-        titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        titleLabel.font = VideoResultStyle.font(size: 20, weight: .semibold)
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(titleLabel)
+        header.addSubview(titleLabel)
 
         let previewContainer = UIView()
         previewContainer.backgroundColor = DesignSystem.Color.card
-        previewContainer.layer.cornerRadius = 22
+        previewContainer.layer.cornerRadius = 24
+        previewContainer.layer.cornerCurve = .continuous
         previewContainer.layer.masksToBounds = true
         previewContainer.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(previewContainer)
@@ -79,16 +90,17 @@ final class VideoResultViewController: UIViewController {
         previewContainer.addSubview(videoView)
         videoView.pinToSuperviewEdges()
 
-        let replaceButton = UIButton(type: .system)
+        let replaceButton = UIButton(type: .custom)
         replaceButton.backgroundColor = UIColor.white.withAlphaComponent(0.52)
-        replaceButton.layer.cornerRadius = 23
-        replaceButton.tintColor = .white
-        replaceButton.setTitle("  Replace", for: .normal)
+        replaceButton.layer.cornerRadius = 20
+        replaceButton.layer.cornerCurve = .continuous
+        replaceButton.setImage(UIImage(named: "VideoRefreshIcon"), for: .normal)
+        replaceButton.setTitle("Replace", for: .normal)
         replaceButton.setTitleColor(.white, for: .normal)
-        replaceButton.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        let replaceConfig = UIImage.SymbolConfiguration(pointSize: 19, weight: .semibold)
-        replaceButton.setImage(UIImage(systemName: "arrow.triangle.2.circlepath", withConfiguration: replaceConfig), for: .normal)
-        replaceButton.contentEdgeInsets = UIEdgeInsets(top: 0, left: 14, bottom: 0, right: 16)
+        replaceButton.titleLabel?.font = VideoResultStyle.font(size: 14, weight: .regular)
+        replaceButton.imageView?.contentMode = .scaleAspectFit
+        replaceButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        replaceButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: -8)
         replaceButton.addTarget(self, action: #selector(replaceTapped), for: .touchUpInside)
         replaceButton.translatesAutoresizingMaskIntoConstraints = false
         previewContainer.addSubview(replaceButton)
@@ -105,32 +117,42 @@ final class VideoResultViewController: UIViewController {
         view.addSubview(buttonStack)
 
         NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 22),
-            backButton.widthAnchor.constraint(equalToConstant: 32),
-            backButton.heightAnchor.constraint(equalToConstant: 32),
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            header.heightAnchor.constraint(equalToConstant: 44),
 
-            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            backButton.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 16),
+            backButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            backButton.widthAnchor.constraint(equalToConstant: 24),
+            backButton.heightAnchor.constraint(equalToConstant: 24),
+            backIcon.centerXAnchor.constraint(equalTo: backButton.centerXAnchor),
+            backIcon.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            backIcon.widthAnchor.constraint(equalToConstant: 9),
+            backIcon.heightAnchor.constraint(equalToConstant: 18),
 
-            previewContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 22),
-            previewContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 36),
-            previewContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -36),
-            previewContainer.bottomAnchor.constraint(equalTo: buttonStack.topAnchor, constant: -18),
+            titleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            titleLabel.centerXAnchor.constraint(equalTo: header.centerXAnchor),
 
-            replaceButton.topAnchor.constraint(equalTo: previewContainer.topAnchor, constant: 18),
+            previewContainer.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 10),
+            previewContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            previewContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            previewContainer.bottomAnchor.constraint(equalTo: buttonStack.topAnchor, constant: -16),
+
+            replaceButton.topAnchor.constraint(equalTo: previewContainer.topAnchor, constant: 16),
             replaceButton.trailingAnchor.constraint(equalTo: previewContainer.trailingAnchor, constant: -16),
-            replaceButton.heightAnchor.constraint(equalToConstant: 46),
+            replaceButton.widthAnchor.constraint(equalToConstant: 109),
+            replaceButton.heightAnchor.constraint(equalToConstant: 40),
 
-            buttonStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 36),
-            buttonStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -36),
-            buttonStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -26),
-            buttonStack.heightAnchor.constraint(equalToConstant: 56)
+            buttonStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            buttonStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            buttonStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -25),
+            buttonStack.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
 
     private func setupToast() {
-        dimView.backgroundColor = UIColor.black.withAlphaComponent(0.62)
+        dimView.backgroundColor = UIColor.black.withAlphaComponent(0.5)
         dimView.alpha = 0
         dimView.isHidden = true
         dimView.addTarget(self, action: #selector(hideToast), for: .touchUpInside)
@@ -138,21 +160,21 @@ final class VideoResultViewController: UIViewController {
         view.addSubview(dimView)
         dimView.pinToSuperviewEdges()
 
-        toastView.backgroundColor = UIColor(red: 0.20, green: 0.15, blue: 0.18, alpha: 0.98)
-        toastView.layer.cornerRadius = 20
+        toastView.layer.cornerRadius = 24
+        toastView.layer.cornerCurve = .continuous
+        toastView.clipsToBounds = true
         toastView.alpha = 0
         toastView.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
         toastView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(toastView)
 
-        let check = UIImageView(image: UIImage(systemName: "checkmark"))
-        check.tintColor = DesignSystem.Color.lavender
+        let check = VideoResultGradientIcon()
         check.translatesAutoresizingMaskIntoConstraints = false
 
         let label = UILabel()
         label.text = "Video has been saved\nto your gallery"
         label.textColor = .white
-        label.font = UIFont.systemFont(ofSize: 17, weight: .medium)
+        label.font = VideoResultStyle.font(size: 16, weight: .regular)
         label.numberOfLines = 2
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -162,14 +184,14 @@ final class VideoResultViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             toastView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            toastView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 18),
-            toastView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.62),
-            toastView.heightAnchor.constraint(equalToConstant: 144),
+            toastView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            toastView.widthAnchor.constraint(equalToConstant: 239),
+            toastView.heightAnchor.constraint(equalToConstant: 134),
 
-            check.topAnchor.constraint(equalTo: toastView.topAnchor, constant: 28),
+            check.topAnchor.constraint(equalTo: toastView.topAnchor, constant: 30),
             check.centerXAnchor.constraint(equalTo: toastView.centerXAnchor),
-            check.widthAnchor.constraint(equalToConstant: 34),
-            check.heightAnchor.constraint(equalToConstant: 28),
+            check.widthAnchor.constraint(equalToConstant: 32),
+            check.heightAnchor.constraint(equalToConstant: 24),
 
             label.topAnchor.constraint(equalTo: check.bottomAnchor, constant: 18),
             label.leadingAnchor.constraint(equalTo: toastView.leadingAnchor, constant: 20),
@@ -180,25 +202,21 @@ final class VideoResultViewController: UIViewController {
     private func makePlainActionButton(title: String) -> UIButton {
         let button = UIButton(type: .system)
         button.backgroundColor = DesignSystem.Color.card
-        button.layer.cornerRadius = 21
+        button.layer.cornerRadius = 24
+        button.layer.cornerCurve = .continuous
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .bold)
-        return button
-    }
-
-    private func makeGradientActionButton(title: String) -> UIButton {
-        let button = UIButton(type: .system)
-        configureGradientActionButton(button, title: title)
+        button.titleLabel?.font = VideoResultStyle.font(size: 16, weight: .semibold)
         return button
     }
 
     private func configureGradientActionButton(_ button: UIButton, title: String) {
-        button.layer.cornerRadius = 21
+        button.layer.cornerRadius = 24
+        button.layer.cornerCurve = .continuous
         button.clipsToBounds = true
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
 
         let gradient = GradientView(colors: [DesignSystem.Color.lavender, DesignSystem.Color.pink], startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
         gradient.isUserInteractionEnabled = false
@@ -217,9 +235,7 @@ final class VideoResultViewController: UIViewController {
             self.toastView.transform = .identity
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in
-            self?.hideToast()
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.hideToast() }
     }
 
     @objc private func hideToast() {
@@ -312,6 +328,56 @@ final class VideoResultViewController: UIViewController {
     }
 }
 
+private enum VideoResultStyle {
+    static let background = UIColor(red: 11 / 255, green: 7 / 255, blue: 14 / 255, alpha: 1)
+    static let blue = UIColor(red: 152 / 255, green: 198 / 255, blue: 247 / 255, alpha: 1)
+    static let pink = UIColor(red: 235 / 255, green: 91 / 255, blue: 146 / 255, alpha: 1)
+
+    static func font(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let name: String
+        switch weight {
+        case .semibold: name = "Inter-SemiBold"
+        case .medium: name = "Inter-Medium"
+        default: name = "Inter-Regular"
+        }
+        return UIFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
+    }
+}
+
+private final class VideoResultGradientIcon: UIView {
+    private let gradient = CAGradientLayer()
+    private let shapeMask = CAShapeLayer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        gradient.colors = [VideoResultStyle.blue.cgColor, VideoResultStyle.pink.cgColor]
+        gradient.startPoint = CGPoint(x: 0, y: 0.5)
+        gradient.endPoint = CGPoint(x: 1, y: 0.5)
+        shapeMask.fillColor = UIColor.clear.cgColor
+        shapeMask.strokeColor = UIColor.black.cgColor
+        shapeMask.lineWidth = 3
+        shapeMask.lineCap = .round
+        shapeMask.lineJoin = .round
+        gradient.mask = shapeMask
+        layer.addSublayer(gradient)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradient.frame = bounds
+        shapeMask.frame = bounds
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: 3, y: bounds.midY))
+        path.addLine(to: CGPoint(x: 12, y: bounds.height - 3))
+        path.addLine(to: CGPoint(x: bounds.width - 2, y: 3))
+        shapeMask.path = path.cgPath
+    }
+}
+
 private enum VideoSaveError: LocalizedError {
     case photoAccessDenied
     case downloadFailed
@@ -359,6 +425,7 @@ private final class LoopingVideoView: UIView {
     func pause() {
         player?.pause()
     }
+
 }
 
 private enum VideoResultPlaceholderFactory {
