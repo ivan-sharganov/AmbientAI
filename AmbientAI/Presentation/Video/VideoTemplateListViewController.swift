@@ -468,12 +468,20 @@ private final class VideoTemplateCell: UICollectionViewCell {
         }
 
         imageTask = Task { [weak self] in
-            let image = await RemoteImageLoader.shared.image(from: previewURL)
-            guard !Task.isCancelled,
-                  self?.representedURL == previewURL else { return }
-            if let image {
-                self?.setPreviewImage(image)
-            } else {
+            do {
+                let localURL = try await VideoPreviewCache.shared.localURL(for: previewURL)
+                let image = await RemoteImageLoader.shared.image(from: localURL)
+                guard !Task.isCancelled,
+                      self?.representedURL == previewURL else { return }
+                if let image {
+                    self?.setPreviewImage(image)
+                } else {
+                    self?.previewSkeleton.hide(animated: true)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                guard self?.representedURL == previewURL else { return }
                 self?.previewSkeleton.hide(animated: true)
             }
         }

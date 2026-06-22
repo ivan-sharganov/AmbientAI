@@ -44,17 +44,22 @@ final class PixverseService: PixverseServiceProtocol {
     func generateVideo(request generation: VideoGenerationRequest) async throws -> Int {
         let url = try makeAPIURL(path: "template2video")
         let boundary = "Boundary-\(UUID().uuidString)"
+        let quality = try validatedQuality(generation.quality)
         var request = authorizedRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = MultipartFormData(boundary: boundary)
             .addingField(name: "template_id", value: String(generation.template.templateID))
-            .addingField(name: "quality", value: generation.quality)
+            .addingField(name: "duration", value: String(generation.template.duration))
+            .addingField(name: "quality", value: quality)
             .addingFile(name: "image", fileName: "photo.jpg", mimeType: "image/jpeg", data: generation.imageData)
             .data
 
+        print("[Pixverse] template2video template_id=\(generation.template.templateID), quality=\(quality), duration=\(generation.template.duration)")
         let data = try await perform(request: request, expectedStatus: 201)
-        return try JSONDecoder().decode(PixverseGenerationResponse.self, from: data).videoID
+        let response = try JSONDecoder().decode(PixverseGenerationResponse.self, from: data)
+        print("[Pixverse] Generation started video_id=\(response.videoID)")
+        return response.videoID
     }
 
     func waitForVideo(videoID: Int) async throws -> URL {
@@ -64,7 +69,8 @@ final class PixverseService: PixverseServiceProtocol {
             let data = try await perform(request: authorizedRequest(url: url))
             let response = try JSONDecoder().decode(PixverseStatusResponse.self, from: data)
 
-            if let value = response.videoURL, let url = URL(string: value) {
+            if let value = response.videoURL,
+               let url = resolvedVideoURL(from: value) {
                 print("PixVerse generated video URL: \(url.absoluteString)")
                 return url
             }
@@ -75,6 +81,20 @@ final class PixverseService: PixverseServiceProtocol {
             try await Task.sleep(nanoseconds: 2_000_000_000)
         }
         throw PixverseError.generationTimedOut
+    }
+
+    private func validatedQuality(_ quality: String) throws -> String {
+        let normalized = quality.lowercased()
+        let supported = ["360p", "540p", "720p", "1080p"]
+        guard supported.contains(normalized) else {
+            throw PixverseError.unsupportedQuality(quality)
+        }
+        return normalized
+    }
+
+    private func resolvedVideoURL(from value: String) -> URL? {
+        guard let url = URL(string: value) else { return nil }
+        return url.scheme == nil ? URL(string: value, relativeTo: baseURL)?.absoluteURL : url
     }
 
     private func makeAPIURL(path: String, extraItems: [URLQueryItem] = []) throws -> URL {
@@ -101,7 +121,10 @@ final class PixverseService: PixverseServiceProtocol {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw PixverseError.invalidResponse }
         let isSuccessful = expectedStatus.map { http.statusCode == $0 } ?? (200..<300).contains(http.statusCode)
-        guard isSuccessful else { throw PixverseError.httpError(http.statusCode) }
+        guard isSuccessful else {
+            let message = PixverseErrorResponse.message(from: data)
+            throw PixverseError.httpError(http.statusCode, message)
+        }
         return data
     }
 }
@@ -156,6 +179,17 @@ private struct PixverseStatusResponse: Decodable {
     }
 }
 
+private enum PixverseErrorResponse {
+    static func message(from data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let detail = object["detail"] else { return nil }
+        if let message = detail as? String { return message }
+        guard JSONSerialization.isValidJSONObject(detail),
+              let detailData = try? JSONSerialization.data(withJSONObject: detail) else { return nil }
+        return String(data: detailData, encoding: .utf8)
+    }
+}
+
 private struct MultipartFormData {
     let boundary: String
     private(set) var data = Data()
@@ -188,7 +222,8 @@ private extension Data {
 enum PixverseError: LocalizedError {
     case invalidURL
     case invalidResponse
-    case httpError(Int)
+    case httpError(Int, String?)
+    case unsupportedQuality(String)
     case generationFailed(String)
     case generationTimedOut
 
@@ -196,7 +231,10 @@ enum PixverseError: LocalizedError {
         switch self {
         case .invalidURL: return "Invalid PixVerse URL."
         case .invalidResponse: return "PixVerse returned an invalid response."
-        case let .httpError(code): return "PixVerse request failed with status \(code)."
+        case let .httpError(code, message):
+            return message ?? "PixVerse request failed with status \(code)."
+        case let .unsupportedQuality(quality):
+            return "PixVerse does not support quality \(quality)."
         case let .generationFailed(status): return "Video generation failed: \(status)."
         case .generationTimedOut: return "Video generation timed out."
         }
