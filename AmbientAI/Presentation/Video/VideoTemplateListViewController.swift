@@ -13,11 +13,13 @@ final class VideoTemplateListViewController: UIViewController {
     }
 
     private let loadingCategoryTitles = ["Popular", "Funny", "Sad", "Trends", "Dances"]
+    private let pageSize = 8
     private let service: PixverseServiceProtocol
     private var state: State = .loading
     private var categories: [VideoTemplateCategory] = []
     private var selectedCategoryIndex = 0
     private var selectedTemplates: [VideoTemplate] = []
+    private var loadedTemplateCounts: [Int: Int] = [:]
     private let errorLabel = UILabel()
 
     private lazy var categoryCollectionView: UICollectionView = {
@@ -194,6 +196,9 @@ final class VideoTemplateListViewController: UIViewController {
                 categories = loadedCategories
                 selectedCategoryIndex = 0
                 selectedTemplates = loadedCategories.first?.templates ?? []
+                loadedTemplateCounts = loadedCategories.indices.reduce(into: [:]) { counts, index in
+                    counts[index] = min(pageSize, loadedCategories[index].templates.count)
+                }
                 render(.content)
             } catch {
                 render(.error(error.localizedDescription))
@@ -222,6 +227,23 @@ final class VideoTemplateListViewController: UIViewController {
     private func categoryTitle(at index: Int) -> String {
         if case .loading = state { return loadingCategoryTitles[index] }
         return categories[index].title
+    }
+
+    private var visibleTemplateCount: Int {
+        min(loadedTemplateCounts[selectedCategoryIndex] ?? pageSize, selectedTemplates.count)
+    }
+
+    private func loadNextTemplatePageIfNeeded(afterDisplaying index: Int) {
+        let currentCount = visibleTemplateCount
+        guard index == currentCount - 1,
+              currentCount < selectedTemplates.count else { return }
+
+        let nextCount = min(currentCount + pageSize, selectedTemplates.count)
+        loadedTemplateCounts[selectedCategoryIndex] = nextCount
+        let indexPaths = (currentCount..<nextCount).map { IndexPath(item: $0, section: 0) }
+        templatesCollectionView.performBatchUpdates {
+            templatesCollectionView.insertItems(at: indexPaths)
+        }
     }
 
     private func openTemplateWithPhotoPermission(_ template: VideoTemplate) {
@@ -266,8 +288,8 @@ extension VideoTemplateListViewController: UICollectionViewDataSource, UICollect
             if case .loading = state { return loadingCategoryTitles.count }
             return categories.count
         }
-        if case .loading = state { return 6 }
-        return selectedTemplates.count
+        if case .loading = state { return pageSize }
+        return visibleTemplateCount
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -301,12 +323,21 @@ extension VideoTemplateListViewController: UICollectionViewDataSource, UICollect
         if collectionView === categoryCollectionView {
             selectedCategoryIndex = indexPath.item
             selectedTemplates = categories[indexPath.item].templates
+            if loadedTemplateCounts[indexPath.item] == nil {
+                loadedTemplateCounts[indexPath.item] = min(pageSize, selectedTemplates.count)
+            }
             categoryCollectionView.reloadData()
             templatesCollectionView.setContentOffset(.zero, animated: false)
             templatesCollectionView.reloadData()
         } else {
             openTemplateWithPhotoPermission(selectedTemplates[indexPath.item])
         }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard collectionView === templatesCollectionView,
+              case .content = state else { return }
+        loadNextTemplatePageIfNeeded(afterDisplaying: indexPath.item)
     }
 
     func collectionView(
@@ -368,7 +399,10 @@ private final class VideoCategoryCell: UICollectionViewCell {
 private final class VideoTemplateCell: UICollectionViewCell {
     static let reuseIdentifier = "VideoTemplateCell"
     private let previewImageView = UIImageView()
+    private let previewSkeleton = ShimmerPlaceholderView()
     private let titleLabel = UILabel()
+    private var imageTask: Task<Void, Never>?
+    private var representedURL: URL?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -382,6 +416,10 @@ private final class VideoTemplateCell: UICollectionViewCell {
         previewImageView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(previewImageView)
         previewImageView.pinToSuperviewEdges()
+
+        previewSkeleton.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(previewSkeleton)
+        previewSkeleton.pinToSuperviewEdges()
 
         let overlay = GradientView(
             colors: [UIColor.clear, VideoCatalogStyle.card.withAlphaComponent(0.6)],
@@ -411,12 +449,45 @@ private final class VideoTemplateCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        previewImageView.image = UIImage(named: "VideoTemplateFallback")
+        imageTask?.cancel()
+        imageTask = nil
+        representedURL = nil
+        previewImageView.image = nil
+        previewSkeleton.show()
     }
 
     func configure(template: VideoTemplate) {
         titleLabel.text = template.title
-        previewImageView.image = UIImage(named: "VideoTemplateFallback")
+        previewImageView.image = nil
+        previewSkeleton.show()
+        imageTask?.cancel()
+        representedURL = template.previewURL
+        guard let previewURL = template.previewURL else {
+            previewSkeleton.hide(animated: false)
+            return
+        }
+
+        imageTask = Task { [weak self] in
+            let image = await RemoteImageLoader.shared.image(from: previewURL)
+            guard !Task.isCancelled,
+                  self?.representedURL == previewURL else { return }
+            if let image {
+                self?.setPreviewImage(image)
+            } else {
+                self?.previewSkeleton.hide(animated: true)
+            }
+        }
+    }
+
+    private func setPreviewImage(_ image: UIImage) {
+        UIView.transition(
+            with: previewImageView,
+            duration: 0.2,
+            options: [.transitionCrossDissolve, .allowAnimatedContent]
+        ) {
+            self.previewImageView.image = image
+        }
+        previewSkeleton.hide(animated: true)
     }
 }
 

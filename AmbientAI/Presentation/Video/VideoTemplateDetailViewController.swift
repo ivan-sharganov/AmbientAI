@@ -430,7 +430,10 @@ extension VideoTemplateDetailViewController: UICollectionViewDataSource, UIColle
 
 private final class VideoCarouselCell: UICollectionViewCell {
     static let reuseIdentifier = "VideoCarouselCell"
-    private let artwork = UIImageView(image: UIImage(named: "VideoTemplateFallback"))
+    private let artwork = UIImageView()
+    private let previewSkeleton = ShimmerPlaceholderView()
+    private var imageTask: Task<Void, Never>?
+    private var representedURL: URL?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -442,14 +445,53 @@ private final class VideoCarouselCell: UICollectionViewCell {
         artwork.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(artwork)
         artwork.pinToSuperviewEdges()
+
+        previewSkeleton.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(previewSkeleton)
+        previewSkeleton.pinToSuperviewEdges()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        imageTask?.cancel()
+        imageTask = nil
+        representedURL = nil
+        artwork.image = nil
+        previewSkeleton.show()
+    }
+
     func configure(template: VideoTemplate) {
-        artwork.image = UIImage(named: "VideoTemplateFallback")
+        artwork.image = nil
+        previewSkeleton.show()
+        imageTask?.cancel()
+        representedURL = template.previewURL
+        guard let previewURL = template.previewURL else {
+            previewSkeleton.hide(animated: false)
+            return
+        }
+
+        imageTask = Task { [weak self] in
+            let image = await RemoteImageLoader.shared.image(from: previewURL)
+            guard let self,
+                  !Task.isCancelled,
+                  representedURL == previewURL else { return }
+            guard let image else {
+                previewSkeleton.hide(animated: true)
+                return
+            }
+            UIView.transition(
+                with: artwork,
+                duration: 0.2,
+                options: [.transitionCrossDissolve, .allowAnimatedContent]
+            ) {
+                self.artwork.image = image
+            }
+            previewSkeleton.hide(animated: true)
+        }
     }
 }
 
