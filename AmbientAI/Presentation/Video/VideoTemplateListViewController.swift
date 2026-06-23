@@ -1,3 +1,4 @@
+import AVFoundation
 import Photos
 import UIKit
 
@@ -69,6 +70,16 @@ final class VideoTemplateListViewController: UIViewController {
         setupUI()
         render(.loading)
         loadTemplates()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        updateVisibleTemplatePlayback(isActive: true)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        updateVisibleTemplatePlayback(isActive: false)
     }
 
     private func setupUI() {
@@ -246,6 +257,12 @@ final class VideoTemplateListViewController: UIViewController {
         }
     }
 
+    private func updateVisibleTemplatePlayback(isActive: Bool) {
+        templatesCollectionView.visibleCells
+            .compactMap { $0 as? VideoTemplateCell }
+            .forEach { $0.setPlaybackActive(isActive) }
+    }
+
     private func openTemplateWithPhotoPermission(_ template: VideoTemplate) {
         let open = { [weak self] in
             self?.onSelectTemplate?(template, self?.selectedTemplates ?? [template])
@@ -337,7 +354,13 @@ extension VideoTemplateListViewController: UICollectionViewDataSource, UICollect
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         guard collectionView === templatesCollectionView,
               case .content = state else { return }
+        (cell as? VideoTemplateCell)?.setPlaybackActive(true)
         loadNextTemplatePageIfNeeded(afterDisplaying: indexPath.item)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard collectionView === templatesCollectionView else { return }
+        (cell as? VideoTemplateCell)?.setPlaybackActive(false)
     }
 
     func collectionView(
@@ -398,11 +421,14 @@ private final class VideoCategoryCell: UICollectionViewCell {
 
 private final class VideoTemplateCell: UICollectionViewCell {
     static let reuseIdentifier = "VideoTemplateCell"
+    private let previewVideoView = ListLoopingVideoPreviewView()
     private let previewImageView = UIImageView()
     private let previewSkeleton = ShimmerPlaceholderView()
     private let titleLabel = UILabel()
     private var imageTask: Task<Void, Never>?
     private var representedURL: URL?
+    private var localVideoURL: URL?
+    private var isPlaybackActive = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -410,6 +436,10 @@ private final class VideoTemplateCell: UICollectionViewCell {
         contentView.layer.cornerRadius = 24
         contentView.layer.cornerCurve = .continuous
         contentView.layer.masksToBounds = true
+
+        previewVideoView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(previewVideoView)
+        previewVideoView.pinToSuperviewEdges()
 
         previewImageView.contentMode = .scaleAspectFill
         previewImageView.clipsToBounds = true
@@ -452,13 +482,20 @@ private final class VideoTemplateCell: UICollectionViewCell {
         imageTask?.cancel()
         imageTask = nil
         representedURL = nil
+        localVideoURL = nil
+        isPlaybackActive = false
+        previewVideoView.reset()
         previewImageView.image = nil
+        previewImageView.alpha = 1
         previewSkeleton.show()
     }
 
     func configure(template: VideoTemplate) {
         titleLabel.text = template.title
         previewImageView.image = nil
+        previewImageView.alpha = 1
+        localVideoURL = nil
+        previewVideoView.reset()
         previewSkeleton.show()
         imageTask?.cancel()
         representedURL = template.previewURL
@@ -473,11 +510,7 @@ private final class VideoTemplateCell: UICollectionViewCell {
                 let image = await RemoteImageLoader.shared.image(from: localURL)
                 guard !Task.isCancelled,
                       self?.representedURL == previewURL else { return }
-                if let image {
-                    self?.setPreviewImage(image)
-                } else {
-                    self?.previewSkeleton.hide(animated: true)
-                }
+                self?.setLoadedPreview(image: image, videoURL: localURL)
             } catch is CancellationError {
                 return
             } catch {
@@ -487,15 +520,100 @@ private final class VideoTemplateCell: UICollectionViewCell {
         }
     }
 
-    private func setPreviewImage(_ image: UIImage) {
-        UIView.transition(
-            with: previewImageView,
-            duration: 0.2,
-            options: [.transitionCrossDissolve, .allowAnimatedContent]
-        ) {
-            self.previewImageView.image = image
+    func setPlaybackActive(_ isActive: Bool) {
+        isPlaybackActive = isActive
+        guard let localVideoURL else {
+            if !isActive { previewVideoView.reset() }
+            return
         }
-        previewSkeleton.hide(animated: true)
+        if isActive {
+            startVideo(url: localVideoURL)
+        } else {
+            previewVideoView.reset()
+            previewImageView.alpha = 1
+        }
+    }
+
+    private func setLoadedPreview(image: UIImage?, videoURL: URL) {
+        localVideoURL = videoURL
+        previewImageView.image = image
+        startVideo(url: videoURL)
+    }
+
+    private func startVideo(url: URL) {
+        guard isPlaybackActive else { return }
+        previewVideoView.onReadyToPlay = { [weak self] in
+            guard let self, self.isPlaybackActive else { return }
+            self.previewSkeleton.hide(animated: true)
+            UIView.animate(withDuration: 0.18) {
+                self.previewImageView.alpha = 0
+            }
+        }
+        previewImageView.alpha = 1
+        previewVideoView.configure(url: url)
+        previewVideoView.play()
+    }
+}
+
+private final class ListLoopingVideoPreviewView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+
+    var onReadyToPlay: (() -> Void)?
+    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+    private var player: AVQueuePlayer?
+    private var looper: AVPlayerLooper?
+    private var displayObservation: NSKeyValueObservation?
+    private var configuredURL: URL?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = VideoCatalogStyle.card
+        playerLayer.videoGravity = .resizeAspectFill
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func configure(url: URL) {
+        guard configuredURL != url else { return }
+        reset()
+        configuredURL = url
+
+        let item = AVPlayerItem(url: url)
+        item.preferredForwardBufferDuration = 1
+        let player = AVQueuePlayer()
+        player.isMuted = true
+        player.actionAtItemEnd = .none
+        player.automaticallyWaitsToMinimizeStalling = false
+        self.player = player
+        looper = AVPlayerLooper(player: player, templateItem: item)
+        playerLayer.player = player
+
+        displayObservation = playerLayer.observe(\.isReadyForDisplay, options: [.initial, .new]) { [weak self] layer, _ in
+            guard layer.isReadyForDisplay else { return }
+            DispatchQueue.main.async {
+                self?.onReadyToPlay?()
+            }
+        }
+    }
+
+    func play() {
+        player?.playImmediately(atRate: 1)
+    }
+
+    func pause() {
+        player?.pause()
+    }
+
+    func reset() {
+        configuredURL = nil
+        displayObservation?.invalidate()
+        displayObservation = nil
+        player?.pause()
+        playerLayer.player = nil
+        looper = nil
+        player = nil
     }
 }
 
